@@ -104,10 +104,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .councillor:has(.response){animation:cardArrive .35s ease-out}
 @keyframes cardArrive{from{opacity:.55;transform:translateY(2px)}to{opacity:1;transform:none}}
 .councillor-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-.avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;flex-shrink:0;overflow:hidden}
-.avatar svg{width:62%;height:62%;display:block}
-.avatar-sm{width:18px;height:18px;border-radius:5px}
-.avatar-sm svg{width:70%;height:70%}
+.avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;flex-shrink:0;letter-spacing:.02em}
+.avatar-sm{width:18px;height:18px;font-size:9px;border-radius:5px;font-weight:600;font-family:var(--mono);color:#fff}
 .avatar[data-vendor="Anthropic"]{background:linear-gradient(135deg,#c96442,#b8533a)}
 .avatar[data-vendor="OpenAI"]{background:linear-gradient(135deg,#2f9e6b,#258055)}
 .avatar[data-vendor="Google"]{background:linear-gradient(135deg,#4285f4,#3367d6)}
@@ -170,8 +168,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .ballot-chip-rank{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:600;flex-shrink:0}
 .ballot-chip-name{white-space:nowrap}
 .ballot-arrow{color:var(--ink-faint);font-size:13px;line-height:1}
-.avatar-sm{width:18px;height:18px;font-size:9px;border-radius:5px}
-.avatar-sm svg{width:70%;height:70%}
+.avatar-sm{width:18px;height:18px;font-size:9px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:600;color:#fff}
 .agg-model{display:inline-flex;align-items:center;gap:8px}
 
 .synthesis{background:linear-gradient(180deg,var(--surface) 0%,var(--accent-soft) 100%);border:1px solid var(--accent-line);border-radius:var(--r-lg);padding:32px;box-shadow:var(--shadow-md);position:relative;overflow:hidden}
