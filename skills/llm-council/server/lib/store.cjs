@@ -8,7 +8,8 @@ function createStore({ dir }) {
 
   function createConversation({ question }) {
     const id = newId('conv');
-    const conv = { id, created_at: isoNow(), title: question.slice(0, 60), turns: [] };
+    const now = isoNow();
+    const conv = { id, created_at: now, updated_at: now, title: question.slice(0, 60), turns: [] };
     mem.set(id, conv);
     return { id };
   }
@@ -17,6 +18,7 @@ function createStore({ dir }) {
     const conv = ensure(cid);
     const id = newId('turn');
     conv.turns.push({ id, question, stage: 0, councillors: [], rankings: [], label_map: {}, aggregate: [], synthesis: null, drills: [] });
+    conv.updated_at = isoNow();
     return { id };
   }
 
@@ -36,6 +38,7 @@ function createStore({ dir }) {
       }
     }
     Object.assign(turn, patch);
+    conv.updated_at = isoNow();
     if (patch.stage === 3) {
       fs.writeFileSync(path.join(dir, `${cid}.json`), JSON.stringify(conv, null, 2));
     }
@@ -53,18 +56,21 @@ function createStore({ dir }) {
   function listConversations() {
     const seen = new Map();
     for (const conv of mem.values()) {
-      seen.set(conv.id, { id: conv.id, title: conv.title, created_at: conv.created_at });
+      seen.set(conv.id, { id: conv.id, title: conv.title, created_at: conv.created_at, updated_at: conv.updated_at || conv.created_at });
     }
     if (fs.existsSync(dir)) {
       for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
         const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
         if (!seen.has(c.id)) {
-          seen.set(c.id, { id: c.id, title: c.title, created_at: c.created_at });
+          seen.set(c.id, { id: c.id, title: c.title, created_at: c.created_at, updated_at: c.updated_at || c.created_at });
         }
       }
     }
     const items = Array.from(seen.values());
-    items.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+    // Sort by most-recent activity. updated_at bumps on every turn + every
+    // stage advance, so active conversations rise to the top — matches the
+    // chronological "latest turn at the bottom" order inside the canvas.
+    items.sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1));
     return items;
   }
 

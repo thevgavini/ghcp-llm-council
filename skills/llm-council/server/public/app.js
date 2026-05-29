@@ -221,12 +221,12 @@ function stage1Html(turn) {
 
 function councillorCardHtml(c, council) {
   const meta = council.find((x) => x.id === c.id) || { vendor: 'Other', display: c.id };
-  const initial = (meta.display || c.id).slice(0, 1).toUpperCase();
+  const glyph = vendorGlyph(meta.vendor);
   if (c.status === 'ok') {
     return `
       <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${glyph}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
@@ -242,7 +242,7 @@ function councillorCardHtml(c, council) {
     return `
       <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${glyph}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)} — ${escapeHtml(c.status)}</div>
@@ -255,7 +255,7 @@ function councillorCardHtml(c, council) {
   return `
     <div class="councillor" data-id="${escapeHtml(c.id)}">
       <div class="councillor-head">
-        <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+        <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${glyph}</div>
         <div class="name-block">
           <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
           <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
@@ -278,8 +278,7 @@ function stage2Html(turn) {
     return { id: cid, label, meta };
   };
   const avatarDot = (meta) => {
-    const initial = (meta.display || '?').slice(0, 1).toUpperCase();
-    return `<span class="avatar avatar-sm" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</span>`;
+    return `<span class="avatar avatar-sm" data-vendor="${escapeHtml(meta.vendor)}">${vendorGlyph(meta.vendor)}</span>`;
   };
 
   // Build a councillor-keyed view so the cards stay in council order with
@@ -291,12 +290,12 @@ function stage2Html(turn) {
 
   const rankerNodes = rows.map((r) => {
     const meta = council.find((c) => c.id === r.ranker) || { vendor: 'Other', display: r.ranker };
-    const initial = (meta.display || r.ranker).slice(0, 1).toUpperCase();
+    const glyph = vendorGlyph(meta.vendor);
     if (r._pending) {
       return `
         <div class="councillor">
           <div class="councillor-head">
-            <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+            <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${glyph}</div>
             <div class="name-block">
               <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
               <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
@@ -315,7 +314,7 @@ function stage2Html(turn) {
     return `
       <div class="councillor">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${glyph}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(r.ranker)}</div>
@@ -574,6 +573,28 @@ function bindEvents() {
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// Per-vendor SVG glyphs. These are original geometric stylizations meant to
+// be visually evocative of each provider's brand language — they are NOT
+// reproductions of trademarked logos. Rendered white-on-gradient inside the
+// existing .avatar container.
+const VENDOR_GLYPHS = {
+  Anthropic: '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5l1.4 3.6L13 6 9.4 7.4 8 11 6.6 7.4 3 6l3.6-.9z"/><path d="M3.5 11l1.1 2.3 2.3 1.1-2.3 1.1L3.5 17l-1.1-1.5-2.3-1.1 2.3-1.1z" opacity=".6"/></svg>',
+  OpenAI:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/><path d="M3 8h10M8 3v10M4.5 4.5l7 7M4.5 11.5l7-7" stroke-width="1"/></svg>',
+  Meta:      '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 8c0-2 1.5-3.5 3.5-3.5C7.5 4.5 8 8 8 8s.5 3.5 2.5 3.5S14 10 14 8s-1.5-3.5-3.5-3.5C8.5 4.5 8 8 8 8s-.5 3.5-2.5 3.5S2 10 2 8z"/></svg>',
+  DeepSeek:  '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 5l6 7 6-7-2-.5L8 9 4 4.5z"/><circle cx="8" cy="3" r="1.2"/></svg>',
+  Mistral:   '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="3" width="12" height="1.6" rx=".8"/><rect x="3.5" y="6.5" width="9" height="1.6" rx=".8" opacity=".8"/><rect x="5" y="10" width="6" height="1.6" rx=".8" opacity=".6"/><rect x="6.5" y="13.5" width="3" height="1.6" rx=".8" opacity=".4"/></svg>',
+  Microsoft: '<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="5" r="2.2"/><circle cx="11" cy="5" r="2.2" opacity=".75"/><circle cx="5" cy="11" r="2.2" opacity=".75"/><circle cx="11" cy="11" r="2.2" opacity=".5"/></svg>',
+  Cohere:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 5c2-1.5 8-1.5 10 0"/><path d="M3 9c2-1.5 8-1.5 10 0" opacity=".8"/><path d="M3 13c2-1.5 8-1.5 10 0" opacity=".5"/></svg>',
+  Google:    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M11.5 5.5A4 4 0 1 0 12 9.5h-4"/></svg>',
+  xAI:       '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>',
+  'AI21 Labs': '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M5.5 11l2.5-6 2.5 6M6.4 9h3.2" stroke-linecap="round"/></svg>',
+  Other:     '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>'
+};
+
+function vendorGlyph(vendor) {
+  return VENDOR_GLYPHS[vendor] || VENDOR_GLYPHS.Other;
 }
 
 // Sanitised markdown rendering. Always use this for untrusted strings
