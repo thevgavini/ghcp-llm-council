@@ -357,16 +357,16 @@ function councillorRowHtml(c, i) {
   const modelOptions = modelOptionsHtml(backend, c.id);
   return `
     <div class="councillor-row" data-i="${i}">
+      <label class="row-field">
+        <span class="row-label">Backend</span>
+        <select data-k="backend" data-i="${i}">${backendOptions}</select>
+      </label>
       <div class="row-line">
         <label class="row-field">
-          <span class="row-label">Backend</span>
-          <select data-k="backend" data-i="${i}">${backendOptions}</select>
-        </label>
-        <label class="row-field flex">
           <span class="row-label">Model</span>
           <select data-k="model" data-i="${i}">${modelOptions}</select>
         </label>
-        <button type="button" class="row-remove" data-remove="${i}" title="Remove">×</button>
+        <button type="button" class="row-remove" data-remove="${i}" title="Remove councillor">×</button>
       </div>
       <label class="row-field">
         <span class="row-label">Display name</span>

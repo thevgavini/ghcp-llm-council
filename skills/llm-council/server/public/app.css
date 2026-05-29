@@ -20,14 +20,19 @@
 *{box-sizing:border-box;margin:0;padding:0}
 [hidden]{display:none !important}
 html,body{height:100%}
+html,body{height:100%;overflow:hidden}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:-.011em;line-height:1.5}
-/* Refined scrollbar — keep it functional but visually muted. */
-*{scrollbar-width:thin;scrollbar-color:var(--hairline-strong) transparent}
-*::-webkit-scrollbar{width:10px;height:10px}
-*::-webkit-scrollbar-track{background:transparent}
-*::-webkit-scrollbar-thumb{background:transparent;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
-*:hover::-webkit-scrollbar-thumb{background:var(--hairline-strong);background-clip:padding-box;border:2px solid transparent}
-*::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);background-clip:padding-box;border:2px solid transparent}
+/* Refined scrollbar — invisible until the surface is hovered, never reserves
+   chrome gutter space. Applies to all scroll surfaces (#main, sidebar history,
+   settings drawer, code blocks). */
+*{scrollbar-width:thin;scrollbar-color:transparent transparent}
+*:hover{scrollbar-color:var(--hairline-strong) transparent}
+*::-webkit-scrollbar{width:8px;height:8px;background:transparent}
+*::-webkit-scrollbar-track{background:transparent;border:none}
+*::-webkit-scrollbar-thumb{background:transparent;border-radius:8px}
+*:hover::-webkit-scrollbar-thumb{background:var(--hairline-strong)}
+*::-webkit-scrollbar-thumb:hover{background:var(--ink-faint)}
+*::-webkit-scrollbar-corner{background:transparent}
 @supports (font-variation-settings:normal){body{font-family:'Inter var',system-ui,sans-serif}}
 
 #app{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
@@ -185,12 +190,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .field input,.field select{width:100%;padding:8px 10px;border:1px solid var(--hairline-strong);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;font-size:13px}
 .drawer-actions{display:flex;align-items:center;gap:12px;margin-top:24px}
 .muted{color:var(--ink-mute);font-size:12px}
-.councillor-row{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;padding:12px;border:1px solid var(--hairline);border-radius:8px;background:var(--bg)}
-.councillor-row .row-line{display:flex;gap:8px;align-items:flex-end}
+.councillor-row{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;padding:12px;border:1px solid var(--hairline);border-radius:8px;background:var(--bg)}
+.councillor-row .row-line{display:grid;grid-template-columns:1fr 32px;gap:8px;align-items:end}
 .councillor-row .row-field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.councillor-row .row-field.flex{flex:1;min-width:0}
 .councillor-row .row-label{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
-.councillor-row select,.councillor-row input{width:100%;padding:7px 9px;border:1px solid var(--hairline-strong);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;min-width:0}
+.councillor-row select,.councillor-row input{width:100%;padding:7px 9px;border:1px solid var(--hairline-strong);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit;font-size:13px;min-width:0;box-sizing:border-box;height:32px;line-height:1.2}
 .councillor-row select{appearance:auto;cursor:pointer}
-.councillor-row .row-remove{padding:0;width:28px;height:30px;flex-shrink:0;border:1px solid var(--hairline-strong);background:var(--surface);color:var(--ink-mute);border-radius:6px;cursor:pointer;font-size:16px;line-height:1;align-self:flex-end}
+.councillor-row .row-remove{padding:0;width:32px;height:32px;flex-shrink:0;border:1px solid var(--hairline-strong);background:var(--surface);color:var(--ink-mute);border-radius:6px;cursor:pointer;font-size:16px;line-height:1;align-self:end}
 .councillor-row .row-remove:hover{background:var(--bad);color:#fff;border-color:var(--bad)}
