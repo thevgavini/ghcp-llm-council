@@ -106,6 +106,12 @@ function api(method, url, body) {
       headers['Content-Type'] = 'application/json';
       headers['Content-Length'] = data.length;
     }
+    // Auto-attach CSRF token for mutating requests so subcommands don't have
+    // to thread it through. Reads fresh from server-info each call (cheap).
+    if (method !== 'GET' && method !== 'HEAD') {
+      const token = getCsrfToken();
+      if (token) headers['X-Council-Token'] = token;
+    }
     const req = http.request({
       method,
       hostname: u.hostname,
@@ -125,6 +131,11 @@ function api(method, url, body) {
     if (data) req.write(data);
     req.end();
   });
+}
+
+function getCsrfToken() {
+  const info = readServerInfo();
+  return info && info.csrf_token;
 }
 
 // ---- subcommands ----------------------------------------------------------

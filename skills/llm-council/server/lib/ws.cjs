@@ -29,6 +29,10 @@ function encodeFrame(opcode, payload) {
   return Buffer.concat([header, payload]);
 }
 
+// M3: hard cap on a single WS frame payload. Defends against an attacker
+// announcing a 64-bit payload length to force a large Buffer.alloc.
+const MAX_WS_FRAME_BYTES = 1024 * 1024;
+
 function decodeFrame(buffer) {
   if (buffer.length < 2) return null;
   const second = buffer[1];
@@ -45,6 +49,9 @@ function decodeFrame(buffer) {
     if (buffer.length < 10) return null;
     payloadLen = Number(buffer.readBigUInt64BE(2));
     offset = 10;
+  }
+  if (payloadLen > MAX_WS_FRAME_BYTES) {
+    throw new Error(`WS frame payload exceeds max size (${payloadLen} > ${MAX_WS_FRAME_BYTES})`);
   }
   const maskOffset = offset;
   const dataOffset = offset + 4;

@@ -4,17 +4,24 @@ const state = {
   conversations: [],
   currentId: null,
   conversation: null,
-  activeStages: {}  // turn_id -> stage number selected by user; absent = follow turn.stage
+  activeStages: {},  // turn_id -> stage number selected by user; absent = follow turn.stage
+  csrfToken: null    // fetched from /api/health on init; required for mutating requests
 };
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
 async function api(method, path, body) {
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  if (method !== 'GET' && method !== 'HEAD' && state.csrfToken) {
+    headers['X-Council-Token'] = state.csrfToken;
+  }
   const res = await fetch(path, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin'
   });
   if (!res.ok) throw new Error(`${method} ${path} → ${res.status}`);
   const text = await res.text();
@@ -54,6 +61,10 @@ function connectWs() {
 
 // ---- Init ------------------------------------------------------------------
 async function init() {
+  // /api/health is the same-origin endpoint that returns the CSRF token.
+  // Cross-origin pages cannot read this response, which is what defeats CSRF.
+  const health = await api('GET', '/api/health');
+  state.csrfToken = health && health.csrf_token;
   state.config = await api('GET', '/api/config');
   state.conversations = await api('GET', '/api/conversations');
   if (state.conversations.length) {
@@ -198,41 +209,41 @@ function councillorCardHtml(c, council) {
   const initial = (meta.display || c.id).slice(0, 1).toUpperCase();
   if (c.status === 'ok') {
     return `
-      <div class="councillor" data-id="${c.id}">
+      <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${meta.vendor}">${initial}</div>
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
-            <div class="vendor-tag">${meta.vendor.toLowerCase()} · ${c.id}</div>
+            <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
           </div>
           <div class="latency">${c.latency_ms ? (c.latency_ms / 1000).toFixed(1) + 's' : ''}</div>
           <span class="check">✓</span>
         </div>
-        <div class="response">${marked.parse(c.response || '')}</div>
+        <div class="response">${safeMd(c.response || '')}</div>
         <div class="expand-row">Read full response →</div>
       </div>`;
   }
   if (c.status === 'timeout' || c.status === 'error' || c.status === 'empty' || c.status === 'unsupported_model') {
     return `
-      <div class="councillor" data-id="${c.id}">
+      <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${meta.vendor}">${initial}</div>
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
-            <div class="vendor-tag">${meta.vendor.toLowerCase()} · ${c.id} — ${c.status}</div>
+            <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)} — ${escapeHtml(c.status)}</div>
           </div>
           <span class="fail">!</span>
         </div>
-        <button class="btn ghost" data-action="retry-councillor" data-id="${c.id}">Retry councillor</button>
+        <button class="btn ghost" data-action="retry-councillor" data-id="${escapeHtml(c.id)}">Retry councillor</button>
       </div>`;
   }
   return `
-    <div class="councillor" data-id="${c.id}">
+    <div class="councillor" data-id="${escapeHtml(c.id)}">
       <div class="councillor-head">
-        <div class="avatar" data-vendor="${meta.vendor}">${initial}</div>
+        <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
         <div class="name-block">
           <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
-          <div class="vendor-tag">${meta.vendor.toLowerCase()} · ${c.id}</div>
+          <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
         </div>
       </div>
       <div class="thinking-label"><span class="pulse"></span>THINKING</div>
@@ -247,11 +258,11 @@ function stage2Html(turn) {
       <div class="councillor-head">
         <div class="name-block">
           <div class="councillor-name">${escapeHtml(council.find((c)=>c.id===r.ranker)?.display || r.ranker)}'s ballot</div>
-          <div class="vendor-tag">${r.ranker}</div>
+          <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
         </div>
       </div>
-      <div class="response expanded">${marked.parse(r.raw || '')}</div>
-      <div class="muted" style="margin-top:8px">Parsed: ${r.parsed.join(' › ') || '(unparseable)'}</div>
+      <div class="response expanded">${safeMd(r.raw || '')}</div>
+      <div class="muted" style="margin-top:8px">Parsed: ${r.parsed.length ? r.parsed.map(escapeHtml).join(' › ') : '(unparseable)'}</div>
     </div>
   `).join('') : '<div class="muted">Rankings still coming in…</div>';
 
@@ -269,7 +280,7 @@ function stage3Html(turn) {
   if (turn.synthesis.error) return `<div class="synthesis" style="border-color:var(--bad)"><div class="synthesis-label" style="color:var(--bad)">Chairman failed</div><div class="synthesis-body">${escapeHtml(turn.synthesis.error)}</div></div>`;
   return `<div class="synthesis">
     <div class="synthesis-label">Chairman · ${escapeHtml(turn.synthesis.model)}</div>
-    <div class="synthesis-body">${marked.parse(turn.synthesis.text || '')}</div>
+    <div class="synthesis-body">${safeMd(turn.synthesis.text || '')}</div>
   </div>`;
 }
 
@@ -310,7 +321,7 @@ function renderSettings() {
   if (!state.config) return;
   const cfg = state.config;
   const chair = $('#settings-chairman');
-  chair.innerHTML = cfg.council.map((c) => `<option value="${c.id}" ${c.id===cfg.chairman?'selected':''}>${escapeHtml(c.display)}</option>`).join('');
+  chair.innerHTML = cfg.council.map((c) => `<option value="${escapeHtml(c.id)}" ${c.id===cfg.chairman?'selected':''}>${escapeHtml(c.display)}</option>`).join('');
   $('#settings-min').value = cfg.min_responses_to_proceed;
   $('#settings-timeout').value = cfg.councillor_timeout_seconds;
   $('#settings-councillors').innerHTML = cfg.council.map((c, i) => `
@@ -362,6 +373,20 @@ function bindEvents() {
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// Sanitised markdown rendering. Always use this for untrusted strings
+// (councillor responses, ranker raw text, chairman synthesis, anything
+// reaching innerHTML). marked v12 does NOT sanitise HTML on its own.
+function safeMd(text) {
+  if (!text) return '';
+  const rendered = (typeof marked !== 'undefined') ? marked.parse(String(text)) : escapeHtml(text);
+  if (typeof DOMPurify === 'undefined') return escapeHtml(text);
+  return DOMPurify.sanitize(rendered, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'style']
+  });
 }
 
 init().catch((e) => console.error(e));

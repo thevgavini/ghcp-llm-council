@@ -20,10 +20,21 @@ function createStore({ dir }) {
     return { id };
   }
 
+  const ALLOWED_PATCH_KEYS = new Set([
+    'stage', 'councillors', 'rankings', 'label_map', 'aggregate', 'synthesis', 'drills'
+  ]);
+
   function patchTurn(cid, tid, patch) {
     const conv = ensure(cid);
     const turn = conv.turns.find((t) => t.id === tid);
     if (!turn) throw new Error(`unknown turn: ${tid}`);
+    // H4: allowlist patch keys. Reject __proto__, constructor, prototype, and
+    // any other unexpected field. Prevents arbitrary turn-field overwrite.
+    for (const key of Object.keys(patch)) {
+      if (!ALLOWED_PATCH_KEYS.has(key)) {
+        throw new Error(`patch key not allowed: ${key}`);
+      }
+    }
     Object.assign(turn, patch);
     if (patch.stage === 3) {
       fs.writeFileSync(path.join(dir, `${cid}.json`), JSON.stringify(conv, null, 2));

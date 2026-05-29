@@ -1,0 +1,8 @@
+# SHA-256 checksums of vendored dependencies.
+#
+# CI verifies these match the files on disk. If you upgrade a dependency,
+# update both the file and its hash in the same commit so a reviewer can
+# diff intent.
+
+8EB41B658831FAB175FAD9BCD00FCB2D84E0ED3A25A55053D4ECD4444B8B43A0  purify.min.js
+EB1F6B19880BC80A5FE34C6A61885173B60EDDA455BA7A33C98714DB17D39F99  marked.min.js

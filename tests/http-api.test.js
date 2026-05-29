@@ -19,10 +19,24 @@ before(async () => {
 });
 after(async () => { await server.close(); });
 
+let csrfToken = null;
+async function ensureToken() {
+  if (csrfToken) return csrfToken;
+  const res = await fetch(url + '/api/health');
+  const body = await res.json();
+  csrfToken = body.csrf_token;
+  return csrfToken;
+}
+
 async function api(method, p, body) {
+  const headers = {};
+  if (body) headers['Content-Type'] = 'application/json';
+  if (method !== 'GET' && method !== 'HEAD') {
+    headers['X-Council-Token'] = await ensureToken();
+  }
   const res = await fetch(url + p, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers,
     body: body ? JSON.stringify(body) : undefined
   });
   const text = await res.text();

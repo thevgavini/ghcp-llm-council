@@ -62,9 +62,13 @@ test('WS handshake succeeds and PATCH broadcasts turn-update', async () => {
     }
   });
 
-  const c = await (await fetch(`http://127.0.0.1:${server.port}/api/conversations`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question:'q' })})).json();
-  const t = await (await fetch(`http://127.0.0.1:${server.port}/api/conversations/${c.id}/turns`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question:'q' })})).json();
-  await fetch(`http://127.0.0.1:${server.port}/api/turns/${t.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ conversation_id: c.id, stage: 1 })});
+  // Fetch CSRF token from /api/health first (same-origin enforcement).
+  const tok = (await (await fetch(`http://127.0.0.1:${server.port}/api/health`)).json()).csrf_token;
+  const H = { 'Content-Type':'application/json', 'X-Council-Token': tok };
+
+  const c = await (await fetch(`http://127.0.0.1:${server.port}/api/conversations`, { method:'POST', headers:H, body: JSON.stringify({ question:'q' })})).json();
+  const t = await (await fetch(`http://127.0.0.1:${server.port}/api/conversations/${c.id}/turns`, { method:'POST', headers:H, body: JSON.stringify({ question:'q' })})).json();
+  await fetch(`http://127.0.0.1:${server.port}/api/turns/${t.id}`, { method:'PATCH', headers:H, body: JSON.stringify({ conversation_id: c.id, stage: 1 })});
 
   await new Promise((r) => setTimeout(r, 100));
   socket.end();

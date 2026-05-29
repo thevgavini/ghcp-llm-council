@@ -31,10 +31,12 @@ test('GET unknown path returns 404', async () => {
   assert.equal(res.status, 404);
 });
 
-test('GET /api/health returns ok', async () => {
+test('GET /api/health returns ok and a csrf_token', async () => {
   const res = await fetch(url + '/api/health');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { ok: true });
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.match(body.csrf_token, /^[0-9a-f]{48}$/);
 });
 
 test('listen on port 0 picks a random port', () => {

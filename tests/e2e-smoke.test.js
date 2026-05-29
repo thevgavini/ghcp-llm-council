@@ -25,8 +25,12 @@ test('orchestrator can drive a full 3-stage turn end-to-end', async () => {
   try {
     const info = await readJsonLine(server.stdout);
     const base = info.url;
+    const tok = info.csrf_token;
     async function api(m, p, b) {
-      const r = await fetch(base + p, { method: m, headers: b ? { 'Content-Type':'application/json' } : {}, body: b ? JSON.stringify(b) : undefined });
+      const headers = {};
+      if (b) headers['Content-Type'] = 'application/json';
+      if (m !== 'GET' && m !== 'HEAD') headers['X-Council-Token'] = tok;
+      const r = await fetch(base + p, { method: m, headers, body: b ? JSON.stringify(b) : undefined });
       const t = await r.text();
       return t ? JSON.parse(t) : null;
     }
