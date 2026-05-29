@@ -37,18 +37,22 @@ function connectWs() {
   ws.addEventListener('message', async (ev) => {
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === 'turn-update') {
-      // Refresh the conversation list so the sidebar picks up any new turns,
-      // and refresh the currently-shown conversation if it's the affected one.
+      // Snapshot the turn ids we knew about BEFORE refreshing, so we can
+      // detect a brand-new turn (e.g. a relaunched council in the same dir
+      // creates a new conversation while the user is still looking at the
+      // previously-loaded one).
+      const knownTids = new Set();
+      for (const c of state.conversations) for (const t of (c.turns || [])) knownTids.add(t.id);
+
       state.conversations = await api('GET', '/api/conversations');
-      if (state.currentTurnId == null) {
-        // Auto-select the latest turn in the conversation that just updated.
-        const conv = state.conversations.find((c) => c.id === msg.conversation_id);
-        const latestTurn = conv && conv.turns && conv.turns.at(-1);
-        if (latestTurn) {
-          await selectTurn(msg.conversation_id, latestTurn.id);
-          return;
-        }
+
+      // Auto-focus a never-before-seen turn so the user actually sees the
+      // councillors firing instead of staring at a stale conversation.
+      if (!knownTids.has(msg.turn_id)) {
+        await selectTurn(msg.conversation_id, msg.turn_id);
+        return;
       }
+
       if (state.currentCid === msg.conversation_id) {
         state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
         render();
@@ -56,6 +60,10 @@ function connectWs() {
         renderSidebar();
       }
     } else if (msg.type === 'conversation-created') {
+      // A new conversation has been created — switch to it once its first
+      // turn-update arrives. We can't switch yet because there's no turn id
+      // in this event; the immediately-following turn-update will trigger
+      // the auto-focus path above.
       state.conversations = await api('GET', '/api/conversations');
       renderSidebar();
     } else if (msg.type === 'config-changed') {
