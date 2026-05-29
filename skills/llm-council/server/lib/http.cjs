@@ -63,7 +63,9 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath 
     }
     if (m === 'POST' && u === '/api/conversations') {
       const body = await readJson(req);
-      return json(res, 201, store.createConversation({ question: body.question || '' }));
+      const result = store.createConversation({ question: body.question || '' });
+      emit({ type: 'conversation-created', conversation_id: result.id });
+      return json(res, 201, result);
     }
     let mt = u.match(/^\/api\/conversations\/([^/]+)\/turns$/);
     if (mt && m === 'POST') {

@@ -40,12 +40,19 @@ function createStore({ dir }) {
   }
 
   function listConversations() {
-    if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'));
-    const items = files.map((f) => {
-      const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      return { id: c.id, title: c.title, created_at: c.created_at };
-    });
+    const seen = new Map();
+    for (const conv of mem.values()) {
+      seen.set(conv.id, { id: conv.id, title: conv.title, created_at: conv.created_at });
+    }
+    if (fs.existsSync(dir)) {
+      for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+        const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        if (!seen.has(c.id)) {
+          seen.set(c.id, { id: c.id, title: c.title, created_at: c.created_at });
+        }
+      }
+    }
+    const items = Array.from(seen.values());
     items.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
     return items;
   }

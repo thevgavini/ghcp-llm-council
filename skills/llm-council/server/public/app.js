@@ -3,7 +3,8 @@ const state = {
   config: null,
   conversations: [],
   currentId: null,
-  conversation: null
+  conversation: null,
+  activeStage: null  // user-selected tab; null = follow turn.stage
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -26,9 +27,23 @@ function connectWs() {
   const ws = new WebSocket(wsUrl);
   ws.addEventListener('message', async (ev) => {
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
-    if (msg.type === 'turn-update' && state.currentId === msg.conversation_id) {
-      state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
-      render();
+    if (msg.type === 'turn-update') {
+      if (state.currentId == null) {
+        // Auto-select the conversation that just got an update
+        state.currentId = msg.conversation_id;
+      }
+      if (state.currentId === msg.conversation_id) {
+        state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
+        state.conversations = await api('GET', '/api/conversations');
+        render();
+      }
+    } else if (msg.type === 'conversation-created') {
+      state.conversations = await api('GET', '/api/conversations');
+      if (state.currentId == null) {
+        await selectConversation(msg.conversation_id);
+      } else {
+        renderSidebar();
+      }
     } else if (msg.type === 'config-changed') {
       state.config = await api('GET', '/api/config');
       renderSettings();
@@ -51,6 +66,7 @@ async function init() {
 
 async function selectConversation(cid) {
   state.currentId = cid;
+  state.activeStage = null;  // reset to "follow turn.stage" on conversation switch
   state.conversation = await api('GET', `/api/conversations/${cid}`);
   render();
 }
@@ -70,6 +86,7 @@ function render() {
   $('#conv-meta').innerHTML = metaHtml(turn);
   $('#stage-rail').innerHTML = stageRailHtml(turn);
   $('#stage-content').innerHTML = stageContentHtml(turn);
+  bindStageClicks(turn);
   bindCardClicks();
 }
 
@@ -92,13 +109,14 @@ function metaHtml(turn) {
 }
 
 function stageRailHtml(turn) {
+  const active = effectiveStage(turn);
   const stages = [
     { n: '01', t: 'First Opinions',   reached: 1, done: turn.stage >= 2 },
     { n: '02', t: 'Peer Review',       reached: 2, done: turn.stage >= 3 },
     { n: '03', t: "Chairman's Synthesis", reached: 3, done: !!turn.synthesis }
   ];
-  return stages.map((s, i) => `
-    <div class="stage ${turn.stage === s.reached ? 'active' : ''}">
+  return stages.map((s) => `
+    <div class="stage ${active === s.reached ? 'active' : ''}" data-stage="${s.reached}" role="button" tabindex="0">
       <div class="stage-meta"><span class="num">${s.n}</span><span>Stage</span></div>
       <div class="stage-title">${s.t}</div>
       <div class="stage-status">${s.done ? '<span class="check">✓</span> Done' : (turn.stage === s.reached ? '<span class="pulse"></span> In progress' : 'Pending')}</div>
@@ -106,10 +124,32 @@ function stageRailHtml(turn) {
   `).join('');
 }
 
+function effectiveStage(turn) {
+  if (state.activeStage != null) return state.activeStage;
+  // Default: show the most-advanced reachable stage with content
+  if (turn.synthesis) return 3;
+  if (turn.stage >= 2 || turn.rankings?.length) return 2;
+  return 1;
+}
+
+function bindStageClicks(turn) {
+  $$('#stage-rail .stage').forEach((el) => {
+    el.addEventListener('click', () => {
+      state.activeStage = Number(el.dataset.stage);
+      // Re-render only the rail + content (cheap, preserves scroll)
+      $('#stage-rail').innerHTML = stageRailHtml(turn);
+      $('#stage-content').innerHTML = stageContentHtml(turn);
+      bindStageClicks(turn);
+      bindCardClicks();
+    });
+  });
+}
+
 function stageContentHtml(turn) {
-  if (turn.stage <= 1 || turn.stage === 0) return stage1Html(turn);
-  if (turn.stage === 2) return stage2Html(turn);
-  return stage3Html(turn);
+  const s = effectiveStage(turn);
+  if (s === 3) return stage3Html(turn);
+  if (s === 2) return stage2Html(turn);
+  return stage1Html(turn);
 }
 
 function stage1Html(turn) {
@@ -220,11 +260,29 @@ function bindCardClicks() {
 
 // ---- Composer (follow-ups) -------------------------------------------------
 async function submitFollowUp(q) {
+  // Create a new turn on the current conversation so the UI immediately shows it.
+  const turn = await api('POST', `/api/conversations/${state.currentId}/turns`, { question: q });
+  // Notify any orchestrator listening on the events file.
   await api('POST', '/api/events', {
     type: 'follow-up',
     conversation_id: state.currentId,
+    turn_id: turn.id,
     question: q
   });
+  state.activeStage = 1;
+}
+
+async function startNewConversation(q) {
+  const conv = await api('POST', '/api/conversations', { question: q });
+  const turn = await api('POST', `/api/conversations/${conv.id}/turns`, { question: q });
+  await api('POST', '/api/events', {
+    type: 'new-conversation',
+    conversation_id: conv.id,
+    turn_id: turn.id,
+    question: q
+  });
+  state.activeStage = 1;
+  await selectConversation(conv.id);
 }
 
 // ---- Settings drawer -------------------------------------------------------
@@ -247,7 +305,10 @@ function renderSettings() {
 
 function bindEvents() {
   $('#new-conversation').addEventListener('click', async () => {
-    state.currentId = null; state.conversation = null; render();
+    const q = window.prompt('What would you like to ask the council?');
+    if (q && q.trim()) {
+      await startNewConversation(q.trim());
+    }
   });
   $('#open-settings').addEventListener('click', () => { $('#settings-drawer').hidden = false; renderSettings(); });
   $('#close-settings').addEventListener('click', () => { $('#settings-drawer').hidden = true; });
