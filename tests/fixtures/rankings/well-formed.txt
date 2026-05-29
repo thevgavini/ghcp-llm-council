@@ -1,0 +1,8 @@
+Response A is thorough but verbose.
+Response B nails the explanation in two sentences.
+Response C is wrong about the date.
+
+FINAL RANKING:
+1. Response B
+2. Response A
+3. Response C
