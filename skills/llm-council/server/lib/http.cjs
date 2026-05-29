@@ -128,7 +128,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
     }
     if (m === 'POST' && u === '/api/conversations') {
       const body = await readJson(req);
-      const result = store.createConversation({ question: body.question || '' });
+      const result = store.createConversation({ question: body.question || '', mode: body.mode });
       emit({ type: 'conversation-created', conversation_id: result.id });
       return json(res, 201, result);
     }

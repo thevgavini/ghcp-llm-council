@@ -6,10 +6,17 @@ function createStore({ dir }) {
   fs.mkdirSync(dir, { recursive: true });
   const mem = new Map();
 
-  function createConversation({ question }) {
+  function createConversation({ question, mode }) {
     const id = newId('conv');
     const now = isoNow();
-    const conv = { id, created_at: now, updated_at: now, title: question.slice(0, 60), turns: [] };
+    const conv = {
+      id,
+      created_at: now,
+      updated_at: now,
+      title: question.slice(0, 60),
+      mode: mode || 'general',
+      turns: []
+    };
     mem.set(id, conv);
     persist(conv);
     return { id };
@@ -70,8 +77,6 @@ function createStore({ dir }) {
       (turns || []).map((t) => ({
         id: t.id,
         question: t.question,
-        // Fall back to the parent created_at for turns predating the
-        // turn-level timestamp.
         created_at: t.created_at,
         stage: t.stage
       }));
@@ -79,6 +84,7 @@ function createStore({ dir }) {
       seen.set(conv.id, {
         id: conv.id,
         title: conv.title,
+        mode: conv.mode || 'general',
         created_at: conv.created_at,
         updated_at: conv.updated_at || conv.created_at,
         turns: pickTurns(conv.turns)
@@ -91,6 +97,7 @@ function createStore({ dir }) {
           seen.set(c.id, {
             id: c.id,
             title: c.title,
+            mode: c.mode || 'general',
             created_at: c.created_at,
             updated_at: c.updated_at || c.created_at,
             turns: pickTurns(c.turns)

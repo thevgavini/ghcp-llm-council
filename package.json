@@ -1,6 +1,6 @@
 {
   "name": "ghcp-llm-council",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A GitHub Copilot CLI skill that runs your question past a council of LLMs.",
   "author": "Vivekananda Gavini",
   "license": "MIT",

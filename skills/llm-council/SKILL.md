@@ -43,15 +43,39 @@ Each councillor (and the chairman) has a `backend` field:
 
 The default council mixes both backends. Inspect the `council` array from `init`'s output: each entry has `id`, `vendor`, `display`, `backend`.
 
+## Modes — pick the right prompt set for the question
+
+Five modes are available; each ships its own `councillor` and `chairman` prompts tuned for the question shape:
+
+| Mode | Use when the user asks for… | Triggering language |
+|---|---|---|
+| `general` (default) | Open-ended Q&A, explanations, opinions | "ask the council X" with no other framing |
+| `review` | Code or change review, security analysis | "review", "audit", "what's wrong with this code", "find bugs in", "security check" |
+| `design` | Architecture or technology choice | "design", "should I use X or Y", "what's the best approach for", "architecture for" |
+| `plan` | Step-by-step implementation roadmap | "plan", "roadmap", "how would you build", "implementation plan for" |
+| `research` | Learn about a topic; explain without recommending | "explain", "how does X work", "what is the state of", "deep dive into" |
+
+Pick the mode from the user's phrasing. When in doubt, use `general`. Pass it via `--mode <mode>` to `init` and `follow-up`. The init output returns `prompts_dir` (e.g. `prompts/review`) — **use that path** for the councillor and chairman prompts in this turn.
+
+## File context — `--files` on init / follow-up
+
+When the question is about specific code (especially in `review` mode), pass the files directly so every councillor sees the same source:
+
+```
+node <skill_dir>/bin/council.cjs init --mode review --files src/auth.cjs,src/middleware.cjs --question "Review these for security holes"
+```
+
+The helper reads each file, caps it at 50 KB (200 KB total across all `--files`), prepends a `--- FILE: <path> ---` block to the question, and stores the augmented question. The councillors then see the file contents inline. Don't paste files into the question text yourself — let the helper do it so size caps and the file-block framing are consistent.
+
 ## The mandatory loop
 
 ### Step 0 — Initialise
 
 ```
-node <skill_dir>/bin/council.cjs init --question "<the user's exact question>"
+node <skill_dir>/bin/council.cjs init --question "<the user's exact question>" [--mode review|design|plan|research|general] [--files path1,path2,...]
 ```
 
-Parse JSON output: `url`, `conversation_id`, `turn_id`, `council`, `chairman`, `chairman_backend`, `councillor_timeout_seconds`, `min_responses_to_proceed`.
+Parse JSON output: `url`, `conversation_id`, `turn_id`, `mode`, `prompts_dir`, `council`, `chairman`, `chairman_backend`, `councillor_timeout_seconds`, `min_responses_to_proceed`.
 
 Tell the user once: **"Council convened at \<url\>. Watch live as the deliberation unfolds."**
 
@@ -64,20 +88,18 @@ Tell the user once: **"Council convened at \<url\>. Watch live as the deliberati
 **Backend = `task`** (parallel, agent-driven):
 - Dispatch a `task` sub-agent in **background** mode.
 - `model` = the councillor's `id`. `agent_type` = `general-purpose`.
-- `prompt` = entire contents of `<skill_dir>/prompts/councillor.md` + a blank line + the user's exact question.
+- `prompt` = entire contents of `<skill_dir>/<prompts_dir>/councillor.md` + a blank line + the user's exact question (where `<prompts_dir>` came from init's output, e.g. `prompts/review`).
 - Group all `task`-backend councillor dispatches in a single response (parallel tool calls).
 
 **Backend = `github-models`** (synchronous, helper-driven):
 - For each one, run (on Windows PowerShell):
   ```powershell
-  $prompt = (Get-Content <skill_dir>/prompts/councillor.md -Raw) + "`n`n" + $userQuestion
-  $resp   = $prompt | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id> 2>&1
-  # NOTE: 2>&1 is wrong here — latency metadata goes to stderr. Use:
+  $prompt = (Get-Content <skill_dir>/<prompts_dir>/councillor.md -Raw) + "`n`n" + $userQuestion
   $resp   = $prompt | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id>
   ```
 - On bash / zsh:
   ```bash
-  printf '%s\n\n%s' "$(cat <skill_dir>/prompts/councillor.md)" "$userQuestion" \
+  printf '%s\n\n%s' "$(cat <skill_dir>/<prompts_dir>/councillor.md)" "$userQuestion" \
     | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id>
   ```
 - The helper prints the response text on stdout (latency metadata on stderr).
@@ -111,7 +133,7 @@ node <skill_dir>/bin/council.cjs set-label-map --tid <turn_id> --cid <conversati
 
 **For each surviving councillor (acting as a ranker), dispatch in its native backend** (same task vs github-models split):
 
-The ranker prompt is `<skill_dir>/prompts/ranker.md` with `{{QUESTION}}` and `{{RESPONSES}}` substituted (responses labelled A, B, C, D etc joined by blank lines).
+The ranker prompt is `<skill_dir>/prompts/ranker.md` (shared across modes — the anonymised ranking process is the same regardless of question type) with `{{QUESTION}}` and `{{RESPONSES}}` substituted (responses labelled A, B, C, D etc joined by blank lines).
 
 As each ranking returns:
 
@@ -133,7 +155,7 @@ node <skill_dir>/bin/council.cjs aggregate --tid <turn_id> --cid <conversation_i
 
 Single dispatch using `chairman` + `chairman_backend` from init's output.
 
-The chairman prompt is `<skill_dir>/prompts/chairman.md` with `{{QUESTION}}`, `{{STAGE1}}` (each councillor's response prefixed `Model: <id>\nResponse: <text>\n\n`), and `{{STAGE2}}` (each ranker's raw text prefixed `Model: <id>\nRanking: <raw>\n\n`).
+The chairman prompt is `<skill_dir>/<prompts_dir>/chairman.md` (mode-specific, from init's output) with `{{QUESTION}}`, `{{STAGE1}}` (each councillor's response prefixed `Model: <id>\nResponse: <text>\n\n`), and `{{STAGE2}}` (each ranker's raw text prefixed `Model: <id>\nRanking: <raw>\n\n`).
 
 If `chairman_backend == task`, dispatch a `task` sub-agent. If `github-models`, use the `call` helper.
 
@@ -188,8 +210,9 @@ Returns `{"events":[...]}` and truncates the file. For v0.1 this is empty (the b
 
 | Helper | Purpose |
 |---|---|
-| `init --question "..."` | Start server (if needed), create conversation + turn, return ids + council config (incl. each councillor's `backend`) |
-| `follow-up --question "..." --cid <cid>` | New turn on existing conversation |
+| `init --question "..." [--mode general\|review\|design\|plan\|research] [--files a,b,c]` | Start server (if needed), create conversation + turn, return ids + `mode` + `prompts_dir` + council config |
+| `follow-up --question "..." --cid <cid> [--mode ...] [--files ...]` | New turn on existing conversation; inherits the conversation's mode unless overridden |
+| `doctor [--deep] [--json] [--timeout-ms N]` | Probe every councillor + chairman. github-models backends get a real ping; task backends are listed as `~ skipped` (only the agent can probe those). Prints a table + a JSON sentinel. Run before init when diagnosing missing-councillor issues. |
 | `call --backend github-models --model <id> [--max-tokens N] [--timeout-ms N]` (stdin: prompt) | Synchronously call a GitHub Models model. Returns response text on stdout, `{latency_ms, usage}` on stderr |
 | `patch-councillor --tid X --cid Y --id <model> --status ok --latency-ms N` (stdin: response) | Push one councillor's response |
 | `advance --tid X --cid Y --stage N` | Transition turn to next stage |

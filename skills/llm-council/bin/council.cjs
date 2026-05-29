@@ -167,18 +167,73 @@ function getCsrfToken() {
   return info && info.csrf_token;
 }
 
-// ---- subcommands ----------------------------------------------------------
+// ---- modes + file context -------------------------------------------------
+
+const VALID_MODES = new Set(['general', 'review', 'design', 'plan', 'research']);
+const FILE_BYTES_PER = 50 * 1024;   // single-file cap
+const FILE_BYTES_TOTAL = 200 * 1024; // total cap across all --files
+
+function resolveMode(args) {
+  const mode = (args.mode || 'general').toLowerCase();
+  if (!VALID_MODES.has(mode)) die(`unknown --mode "${mode}". Valid: ${[...VALID_MODES].join(', ')}.`);
+  return mode;
+}
+
+// Read --files (comma-separated or repeated), cap each + total, and return a
+// formatted block prepended to the user's question. Truncates with a clear
+// marker so the model knows the input was cut.
+function buildQuestionWithFiles(question, filesArg) {
+  if (!filesArg) return question;
+  const paths = Array.isArray(filesArg) ? filesArg : String(filesArg).split(',');
+  let total = 0;
+  const blocks = [];
+  for (const raw of paths) {
+    const p = raw.trim();
+    if (!p) continue;
+    if (!fs.existsSync(p)) {
+      blocks.push(`--- FILE: ${p} (not found) ---\n`);
+      continue;
+    }
+    const stat = fs.statSync(p);
+    if (!stat.isFile()) {
+      blocks.push(`--- FILE: ${p} (not a regular file, skipped) ---\n`);
+      continue;
+    }
+    let buf;
+    try { buf = fs.readFileSync(p, 'utf8'); }
+    catch (e) { blocks.push(`--- FILE: ${p} (read error: ${e.message}) ---\n`); continue; }
+
+    let truncated = false;
+    if (buf.length > FILE_BYTES_PER) { buf = buf.slice(0, FILE_BYTES_PER); truncated = true; }
+    if (total + buf.length > FILE_BYTES_TOTAL) {
+      buf = buf.slice(0, Math.max(0, FILE_BYTES_TOTAL - total));
+      truncated = true;
+    }
+    total += buf.length;
+    blocks.push(`--- FILE: ${p}${truncated ? ' (TRUNCATED)' : ''} ---\n\`\`\`\n${buf}\n\`\`\`\n`);
+    if (total >= FILE_BYTES_TOTAL) {
+      blocks.push(`--- ADDITIONAL FILES OMITTED (200 KB context limit reached) ---\n`);
+      break;
+    }
+  }
+  if (!blocks.length) return question;
+  return `${blocks.join('\n')}\n---\n\nUSER QUESTION:\n${question}`;
+}
 
 async function cmdInit(args) {
   if (!args.question) die('init requires --question "..."');
+  const mode = resolveMode(args);
+  const question = buildQuestionWithFiles(args.question, args.files);
   const info = await ensureServer(args['owner-pid']);
-  const conv = await api('POST', `${info.url}/api/conversations`, { question: args.question });
-  const turn = await api('POST', `${info.url}/api/conversations/${conv.id}/turns`, { question: args.question });
+  const conv = await api('POST', `${info.url}/api/conversations`, { question, mode });
+  const turn = await api('POST', `${info.url}/api/conversations/${conv.id}/turns`, { question });
   const config = await api('GET', `${info.url}/api/config`);
   ok({
     url: info.url,
     conversation_id: conv.id,
     turn_id: turn.id,
+    mode,
+    prompts_dir: `prompts/${mode}`,
     council: config.council,
     chairman: config.chairman,
     chairman_backend: config.chairman_backend,
@@ -192,12 +247,18 @@ async function cmdFollowUp(args) {
   if (!args.cid) die('follow-up requires --cid (existing conversation id)');
   const info = readServerInfo();
   if (!info) die('no server running; call `init` first');
-  const turn = await api('POST', `${info.url}/api/conversations/${args.cid}/turns`, { question: args.question });
+  // Inherit the conversation's original mode unless the caller overrides it.
+  const conv = await api('GET', `${info.url}/api/conversations/${args.cid}`);
+  const mode = args.mode ? resolveMode(args) : (conv.mode || 'general');
+  const question = buildQuestionWithFiles(args.question, args.files);
+  const turn = await api('POST', `${info.url}/api/conversations/${args.cid}/turns`, { question });
   const config = await api('GET', `${info.url}/api/config`);
   ok({
     url: info.url,
     conversation_id: args.cid,
     turn_id: turn.id,
+    mode,
+    prompts_dir: `prompts/${mode}`,
     council: config.council,
     chairman: config.chairman,
     chairman_backend: config.chairman_backend,
@@ -321,6 +382,99 @@ async function cmdStatus() {
   ok({ server: info, conversations: conversations.length });
 }
 
+// ---- doctor ---------------------------------------------------------------
+
+// `doctor` pings every councillor (and the chairman) with a tiny prompt and
+// reports {status, latency_ms, sample} per model. Catches dead backends,
+// expired tokens, unsupported models, and slow vendors BEFORE the agent
+// spawns five long-running task subagents and discovers them one by one.
+//
+//   --deep    Use a more substantive prompt (still small) instead of "say OK".
+//   --json    Output structured JSON (default is a printable table).
+async function cmdDoctor(args) {
+  const info = await ensureServer(args['owner-pid']);
+  const config = await api('GET', `${info.url}/api/config`);
+  const council = config.council || [];
+  const chairmanId = config.chairman;
+  const chairmanBackend = config.chairman_backend || 'task';
+  const timeoutMs = args['timeout-ms'] ? Number(args['timeout-ms']) : 30000;
+
+  const prompt = args.deep
+    ? 'In one sentence, state which model you are and that you are reachable.'
+    : 'Reply with exactly two characters: OK';
+
+  // Build the full list to probe — every councillor plus the chairman if it's
+  // not already in the council.
+  const probes = council.map((c) => ({ ...c, role: 'councillor' }));
+  if (chairmanId && !probes.find((p) => p.id === chairmanId)) {
+    probes.push({
+      id: chairmanId,
+      display: chairmanId,
+      vendor: 'Other',
+      backend: chairmanBackend,
+      role: 'chairman'
+    });
+  } else if (chairmanId) {
+    const existing = probes.find((p) => p.id === chairmanId);
+    if (existing) existing.role = `councillor+chairman`;
+  }
+
+  const results = await Promise.all(probes.map((p) => probeOne(p, prompt, timeoutMs)));
+
+  if (args.json) {
+    return ok({ probes: results, prompt, deep: !!args.deep });
+  }
+
+  // Human-readable table on stdout, then a single-line ok() sentinel so the
+  // agent can still parse a success signal.
+  const widest = (k) => Math.max(k.length, ...results.map((r) => String(r[k] || '').length));
+  const w = { role: widest('role'), display: widest('display'), backend: widest('backend'), status: widest('status') };
+  const pad = (s, n) => String(s || '').padEnd(n);
+  console.log('');
+  console.log(`  ${pad('role', w.role)}  ${pad('model', w.display)}  ${pad('backend', w.backend)}  ${pad('status', w.status)}  latency`);
+  console.log(`  ${'-'.repeat(w.role)}  ${'-'.repeat(w.display)}  ${'-'.repeat(w.backend)}  ${'-'.repeat(w.status)}  -------`);
+  let okCount = 0;
+  for (const r of results) {
+    if (r.status === 'ok') okCount++;
+    const latency = r.latency_ms != null ? `${(r.latency_ms / 1000).toFixed(2)}s` : '—';
+    const mark = r.status === 'ok' ? '✓' : r.status === 'skipped' ? '~' : '✗';
+    console.log(`  ${pad(r.role, w.role)}  ${pad(r.display, w.display)}  ${pad(r.backend, w.backend)}  ${mark} ${pad(r.status, w.status - 2)}  ${latency}`);
+    if (r.status === 'error' && r.error) {
+      console.log(`        └─ ${r.error.slice(0, 180)}`);
+    }
+  }
+  console.log('');
+  const skipped = results.filter((r) => r.status === 'skipped').length;
+  console.log(`  ${okCount}/${results.length - skipped} probed healthy${skipped ? `  (${skipped} task-backend not probed)` : ''}`);
+  console.log('');
+  ok({ healthy: okCount, total: results.length });
+}
+
+async function probeOne(p, prompt, timeoutMs) {
+  const start = Date.now();
+  const base = { role: p.role, id: p.id, display: p.display || p.id, vendor: p.vendor, backend: p.backend || 'task' };
+  if ((p.backend || 'task') === 'github-models') {
+    try {
+      const token = ghToken();
+      const out = await postChatCompletion(token, p.id, prompt, { max_tokens: 24, timeout_ms: timeoutMs });
+      const sample = (out.content || '').trim().slice(0, 60);
+      if (!sample) return { ...base, status: 'empty', latency_ms: Date.now() - start, sample: '', error: 'empty response' };
+      return { ...base, status: 'ok', latency_ms: Date.now() - start, sample };
+    } catch (e) {
+      return { ...base, status: 'error', latency_ms: Date.now() - start, error: e.message };
+    }
+  }
+  // task backend: we can't probe end-to-end from this process (it would
+  // require spawning a Copilot CLI subagent). Mark as 'skipped' with a
+  // helpful note instead of pretending to test it.
+  return {
+    ...base,
+    status: 'skipped',
+    latency_ms: null,
+    error: 'task-backend; probed only when the agent dispatches it.'
+  };
+}
+
 // ---- Backend dispatch (github-models) -------------------------------------
 
 function ghToken() {
@@ -431,7 +585,7 @@ async function inferCid(baseUrl, tid) {
 
 const argv = process.argv.slice(2);
 if (argv.length === 0) {
-  die('usage: council.cjs <subcommand> [--flags]  (subcommands: init|follow-up|call|patch-councillor|advance|set-label-map|patch-ranking|aggregate|synthesize|read-events|status)');
+  die('usage: council.cjs <subcommand> [--flags]  (subcommands: init|follow-up|call|patch-councillor|advance|set-label-map|patch-ranking|aggregate|synthesize|read-events|status|doctor)');
 }
 
 const sub = argv[0];
@@ -448,7 +602,8 @@ const map = {
   'synthesize': cmdSynthesize,
   'read-events': cmdReadEvents,
   'status': cmdStatus,
-  'call': cmdCall
+  'call': cmdCall,
+  'doctor': cmdDoctor
 };
 
 const fn = map[sub];
