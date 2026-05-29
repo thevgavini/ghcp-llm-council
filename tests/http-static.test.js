@@ -23,7 +23,7 @@ test('GET / serves index.html', async () => {
   const res = await fetch(url + '/');
   assert.equal(res.status, 200);
   const body = await res.text();
-  assert.match(body, /LLM Council UI placeholder/);
+  assert.match(body, /<title>LLM Council<\/title>/);
 });
 
 test('GET unknown path returns 404', async () => {
