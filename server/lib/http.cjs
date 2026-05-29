@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createStore } = require('./store.cjs');
 const { loadConfig, validateConfig } = require('./config.cjs');
+const { computeAcceptKey, encodeFrame, OPCODES } = require('./ws.cjs');
 
 const MIME = { '.html':'text/html', '.css':'text/css', '.js':'application/javascript', '.json':'application/json', '.svg':'image/svg+xml', '.png':'image/png' };
 
@@ -14,6 +15,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath 
   const eventsPath = path.join(stateDir, 'events');
   const listeners = new Set();
 
+  const wsClients = new Set();
   const server = http.createServer(async (req, res) => {
     try {
       if (req.url === '/api/health') return json(res, 200, { ok: true });
@@ -23,6 +25,28 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath 
       res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
     }
   });
+
+  server.on('upgrade', (req, socket) => {
+    if (req.url !== '/ws') { socket.destroy(); return; }
+    const key = req.headers['sec-websocket-key'];
+    if (!key) { socket.destroy(); return; }
+    const accept = computeAcceptKey(key);
+    socket.write(
+      'HTTP/1.1 101 Switching Protocols\r\n' +
+      'Upgrade: websocket\r\n' +
+      'Connection: Upgrade\r\n' +
+      `Sec-WebSocket-Accept: ${accept}\r\n\r\n`
+    );
+    wsClients.add(socket);
+    socket.on('close', () => wsClients.delete(socket));
+    socket.on('error', () => wsClients.delete(socket));
+  });
+  function broadcast(obj) {
+    const payload = Buffer.from(JSON.stringify(obj));
+    const frame = encodeFrame(OPCODES.TEXT, payload);
+    for (const s of wsClients) { try { s.write(frame); } catch {} }
+  }
+  listeners.add((evt) => broadcast(evt));
 
   async function route(req, res) {
     const u = req.url; const m = req.method;
@@ -100,7 +124,11 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath 
       });
     });
   }
-  function close() { return new Promise((r) => server.close(r)); }
+  function close() {
+    for (const s of wsClients) { s.destroy(); }
+    wsClients.clear();
+    return new Promise((r) => server.close(r));
+  }
 
   return new Proxy({ listen, close, server, onEvent, ctx }, {
     get(t, k) { if (k in t) return t[k]; if (k === 'port') return ctx.port; if (k === 'host') return ctx.host; }
