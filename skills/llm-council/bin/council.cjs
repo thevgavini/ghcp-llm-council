@@ -10,11 +10,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
-const { spawn } = require('node:child_process');
+const https = require('node:https');
+const { spawn, execFileSync } = require('node:child_process');
 
 const SKILL_DIR = path.resolve(__dirname, '..');               // skills/llm-council
 const SERVER_START = path.join(SKILL_DIR, 'server', 'start.cjs');
 const RANKING_LIB = path.join(SKILL_DIR, 'server', 'lib', 'ranking.cjs');
+
+const GH_MODELS_HOST = 'models.github.ai';
+const GH_MODELS_PATH = '/inference/chat/completions';
 
 // ---- arg parsing ----------------------------------------------------------
 
@@ -137,6 +141,7 @@ async function cmdInit(args) {
     turn_id: turn.id,
     council: config.council,
     chairman: config.chairman,
+    chairman_backend: config.chairman_backend,
     min_responses_to_proceed: config.min_responses_to_proceed,
     councillor_timeout_seconds: config.councillor_timeout_seconds
   });
@@ -155,6 +160,7 @@ async function cmdFollowUp(args) {
     turn_id: turn.id,
     council: config.council,
     chairman: config.chairman,
+    chairman_backend: config.chairman_backend,
     min_responses_to_proceed: config.min_responses_to_proceed,
     councillor_timeout_seconds: config.councillor_timeout_seconds
   });
@@ -275,6 +281,103 @@ async function cmdStatus() {
   ok({ server: info, conversations: conversations.length });
 }
 
+// ---- Backend dispatch (github-models) -------------------------------------
+
+function ghToken() {
+  // 1. Allow override via env var (useful for CI / non-gh setups)
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+  if (process.env.GH_TOKEN) return process.env.GH_TOKEN;
+
+  // 2. Otherwise call `gh auth token` from the gh CLI
+  const candidates = [
+    'gh',
+    process.env.ProgramFiles ? path.join(process.env.ProgramFiles, 'GitHub CLI', 'gh.exe') : null,
+    process.env['ProgramFiles(x86)'] ? path.join(process.env['ProgramFiles(x86)'], 'GitHub CLI', 'gh.exe') : null,
+    process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Programs', 'GitHub CLI', 'gh.exe') : null
+  ].filter(Boolean);
+
+  let lastErr = null;
+  for (const cand of candidates) {
+    try {
+      const out = execFileSync(cand, ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+      if (out) return out;
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error('Could not get a GitHub token. Install GitHub CLI (`winget install GitHub.cli` or https://cli.github.com/) and run `gh auth login`, or set GITHUB_TOKEN env var.');
+}
+
+function postChatCompletion(token, model, prompt, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      ...(opts.max_tokens ? { max_tokens: opts.max_tokens } : {})
+    });
+    const req = https.request({
+      hostname: GH_MODELS_HOST,
+      port: 443,
+      path: GH_MODELS_PATH,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'Accept': 'application/json',
+        'User-Agent': 'llm-council/0.1'
+      },
+      timeout: (opts.timeout_ms || 120000)
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        if (res.statusCode >= 400) return reject(new Error(`${res.statusCode}: ${text.slice(0, 500)}`));
+        try {
+          const j = JSON.parse(text);
+          const content = j?.choices?.[0]?.message?.content ?? '';
+          resolve({ content, usage: j.usage || null, raw: j });
+        } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => req.destroy(new Error('request timeout')));
+    req.write(body);
+    req.end();
+  });
+}
+
+async function cmdCall(args) {
+  if (!args.backend) die('call requires --backend');
+  if (!args.model) die('call requires --model');
+  const prompt = await readStdin();
+  if (!prompt.trim()) die('call requires a non-empty prompt on stdin');
+  const start = Date.now();
+
+  if (args.backend === 'task') {
+    die('backend "task" cannot be invoked from the helper. The agent dispatches task sub-agents directly with the task tool and then calls patch-councillor with the response.');
+  }
+
+  if (args.backend === 'github-models') {
+    let token;
+    try { token = ghToken(); } catch (e) { die(e.message); }
+    try {
+      const { content, usage } = await postChatCompletion(token, args.model, prompt, {
+        max_tokens: args['max-tokens'] ? Number(args['max-tokens']) : undefined,
+        timeout_ms: args['timeout-ms'] ? Number(args['timeout-ms']) : undefined
+      });
+      // Print the response text directly (not JSON-wrapped) so the agent can pipe it.
+      // But ALSO emit a metadata line on stderr for the agent to capture latency.
+      process.stderr.write(JSON.stringify({ latency_ms: Date.now() - start, usage }) + '\n');
+      process.stdout.write(content);
+      process.exit(0);
+    } catch (e) {
+      die(`github-models call failed: ${e.message}`);
+    }
+  }
+
+  die(`unknown backend: ${args.backend}`);
+}
+
 async function inferCid(baseUrl, tid) {
   const list = await api('GET', `${baseUrl}/api/conversations`);
   for (const c of list) {
@@ -288,7 +391,7 @@ async function inferCid(baseUrl, tid) {
 
 const argv = process.argv.slice(2);
 if (argv.length === 0) {
-  die('usage: council.cjs <subcommand> [--flags]  (subcommands: init|follow-up|patch-councillor|advance|set-label-map|patch-ranking|aggregate|synthesize|read-events|status)');
+  die('usage: council.cjs <subcommand> [--flags]  (subcommands: init|follow-up|call|patch-councillor|advance|set-label-map|patch-ranking|aggregate|synthesize|read-events|status)');
 }
 
 const sub = argv[0];
@@ -304,7 +407,8 @@ const map = {
   'aggregate': cmdAggregate,
   'synthesize': cmdSynthesize,
   'read-events': cmdReadEvents,
-  'status': cmdStatus
+  'status': cmdStatus,
+  'call': cmdCall
 };
 
 const fn = map[sub];

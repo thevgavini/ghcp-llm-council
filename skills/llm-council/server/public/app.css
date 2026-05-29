@@ -89,6 +89,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .avatar[data-vendor="OpenAI"]{background:linear-gradient(135deg,#2f9e6b,#258055)}
 .avatar[data-vendor="Google"]{background:linear-gradient(135deg,#4285f4,#3367d6)}
 .avatar[data-vendor="xAI"]{background:linear-gradient(135deg,#1d1d1f,#3a3a40)}
+.avatar[data-vendor="Meta"]{background:linear-gradient(135deg,#1877f2,#0c5fd0)}
+.avatar[data-vendor="DeepSeek"]{background:linear-gradient(135deg,#6b46c1,#553093)}
+.avatar[data-vendor="Mistral"]{background:linear-gradient(135deg,#ff7000,#cc5a00)}
+.avatar[data-vendor="Microsoft"]{background:linear-gradient(135deg,#00a4ef,#0078d4)}
+.avatar[data-vendor="Cohere"]{background:linear-gradient(135deg,#39594d,#2a423a)}
+.avatar[data-vendor="AI21 Labs"]{background:linear-gradient(135deg,#e91e63,#ad1457)}
+.avatar[data-vendor="Other"]{background:linear-gradient(135deg,#76767e,#5a5a62)}
 .name-block{flex:1;min-width:0}
 .councillor-name{font-size:14px;font-weight:600;letter-spacing:-.015em}
 .vendor-tag{font-family:var(--mono);font-size:10px;color:var(--ink-mute);margin-top:2px}

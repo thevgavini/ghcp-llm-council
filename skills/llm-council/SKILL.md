@@ -34,82 +34,86 @@ node <skill_dir>/bin/council.cjs <subcommand> [--flags]
 
 `<skill_dir>` is the directory containing this `SKILL.md`. Every helper subcommand prints a single JSON line on stdout (success object or `{"error":"..."}`). Multi-line text payloads (councillor responses, ranker outputs, synthesis) are read from **stdin** to avoid shell escaping issues.
 
+## Two backends per councillor
+
+Each councillor (and the chairman) has a `backend` field:
+
+- **`task`** — dispatched by you via the `task` tool with `model` set to the councillor's `id`. Use this for Anthropic + OpenAI models exposed through ghcp CLI. No extra credentials needed (uses the user's Copilot inference).
+- **`github-models`** — dispatched via the helper's `call` subcommand, which posts to `models.github.ai/inference/chat/completions` using the user's `gh auth token`. No extra credentials beyond `gh auth login`. Use this for Meta Llama, DeepSeek, Mistral, Microsoft Phi, Cohere — vendors NOT exposed through `task`.
+
+The default council mixes both backends. Inspect the `council` array from `init`'s output: each entry has `id`, `vendor`, `display`, `backend`.
+
 ## The mandatory loop
 
-### Step 0 — Initialise (starts server, creates conversation + turn)
+### Step 0 — Initialise
 
 ```
 node <skill_dir>/bin/council.cjs init --question "<the user's exact question>"
 ```
 
-Parse the JSON output. You'll need: `url`, `conversation_id`, `turn_id`, `council` (array of councillors with `id`, `display`, `vendor`), `chairman` (model id), `councillor_timeout_seconds`, `min_responses_to_proceed`.
+Parse JSON output: `url`, `conversation_id`, `turn_id`, `council`, `chairman`, `chairman_backend`, `councillor_timeout_seconds`, `min_responses_to_proceed`.
 
 Tell the user once: **"Council convened at \<url\>. Watch live as the deliberation unfolds."**
 
-> If the user said "follow up" / "ask a follow-up", use `follow-up --question "..." --cid <previous conversation id>` instead of `init`. The previous conversation id is in your scratchpad from the prior invocation in this session, or you can list via `status` and pick the most recent.
+> If the user said "follow up", use `follow-up --question "..." --cid <previous conversation id>` instead.
 
-### Step 1 — First opinions (parallel `task` dispatches)
+### Step 1 — First opinions
 
-For **each** councillor in the `council` array, dispatch a `task` sub-agent in **background** mode:
+**For each councillor in `council`, do one of two things based on its `backend`:**
 
-- `model` = the councillor's `id` (e.g. `claude-sonnet-4.6`)
-- `agent_type` = `general-purpose`
-- `mode` = `background`
-- `prompt` = the entire contents of `<skill_dir>/prompts/councillor.md` + a blank line + the user's exact question
+**Backend = `task`** (parallel, agent-driven):
+- Dispatch a `task` sub-agent in **background** mode.
+- `model` = the councillor's `id`. `agent_type` = `general-purpose`.
+- `prompt` = entire contents of `<skill_dir>/prompts/councillor.md` + a blank line + the user's exact question.
+- Group all `task`-backend councillor dispatches in a single response (parallel tool calls).
 
-**Dispatch all councillors in a single response** (parallel tool calls). Then wait for completion notifications.
+**Backend = `github-models`** (synchronous, helper-driven):
+- For each one, run (on Windows PowerShell):
+  ```powershell
+  $prompt = (Get-Content <skill_dir>/prompts/councillor.md -Raw) + "`n`n" + $userQuestion
+  $resp   = $prompt | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id> 2>&1
+  # NOTE: 2>&1 is wrong here — latency metadata goes to stderr. Use:
+  $resp   = $prompt | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id>
+  ```
+- On bash / zsh:
+  ```bash
+  printf '%s\n\n%s' "$(cat <skill_dir>/prompts/councillor.md)" "$userQuestion" \
+    | node <skill_dir>/bin/council.cjs call --backend github-models --model <councillor.id>
+  ```
+- The helper prints the response text on stdout (latency metadata on stderr).
+- These can be run sequentially (each takes 1-4s).
 
-As each councillor returns, immediately PATCH the server:
+**As each councillor's response arrives (task or github-models), immediately PATCH the server:**
 
 ```powershell
-# Windows PowerShell — pipe the response to stdin
 $response | node <skill_dir>/bin/council.cjs patch-councillor `
   --tid <turn_id> --cid <conversation_id> `
-  --id <model id> --status ok --latency-ms <elapsed>
+  --id <councillor_id> --status ok --latency-ms <elapsed>
 ```
 
-```bash
-# Unix
-printf '%s' "$response" | node <skill_dir>/bin/council.cjs patch-councillor \
-  --tid <turn_id> --cid <conversation_id> \
-  --id <model_id> --status ok --latency-ms <elapsed>
-```
+If a councillor times out, returns garbage, or errors, PATCH with `--status timeout|error|empty` and pipe the error message to stdin.
 
-If a sub-agent times out (> `councillor_timeout_seconds`), returns empty/garbage, or errors, PATCH it with `--status timeout|empty|error` and pipe the error message to stdin. The browser will show the failed card and offer retry.
-
-Once `min_responses_to_proceed` councillors have succeeded (default: 2 out of 4), advance:
+Once `min_responses_to_proceed` councillors have succeeded, advance:
 
 ```
 node <skill_dir>/bin/council.cjs advance --tid <turn_id> --cid <conversation_id> --stage 2
 ```
 
-If fewer than `min_responses_to_proceed` succeed, advance to `--stage -1` and stop. Tell the user the council failed and ask whether to retry.
+If fewer than `min_responses_to_proceed` succeed, advance to `--stage -1`, tell the user, and stop.
 
-### Step 2 — Anonymised peer review (parallel `task` dispatches)
+### Step 2 — Anonymised peer review
 
-Build a label map mapping `Response A`, `Response B`, … to each surviving councillor's `id`, in the order they appear in `council`. Push it to the server:
+Build label map: `Response A` → 1st surviving councillor's id, `Response B` → 2nd, etc.
 
 ```
-node <skill_dir>/bin/council.cjs set-label-map --tid <turn_id> --cid <conversation_id> --map '{"Response A":"claude-sonnet-4.6","Response B":"claude-opus-4.7","Response C":"gpt-5.2","Response D":"gpt-5.3-codex"}'
+node <skill_dir>/bin/council.cjs set-label-map --tid <turn_id> --cid <conversation_id> --map '{"Response A":"claude-sonnet-4.6", "Response B":"gpt-5.2", ...}'
 ```
 
-For **each** surviving councillor (acting now as a ranker), dispatch a `task` sub-agent in **background** mode with `model` = that councillor's id and `prompt` built from `<skill_dir>/prompts/ranker.md`:
+**For each surviving councillor (acting as a ranker), dispatch in its native backend** (same task vs github-models split):
 
-- Replace `{{QUESTION}}` with the user's exact question.
-- Replace `{{RESPONSES}}` with the labelled responses joined by blank lines:
-  ```
-  Response A:
-  <text from councillor A>
+The ranker prompt is `<skill_dir>/prompts/ranker.md` with `{{QUESTION}}` and `{{RESPONSES}}` substituted (responses labelled A, B, C, D etc joined by blank lines).
 
-  Response B:
-  <text from councillor B>
-
-  ...
-  ```
-
-**Dispatch all rankers in a single response** (parallel tool calls). Wait for completions.
-
-As each ranking returns, PATCH:
+As each ranking returns:
 
 ```powershell
 $rankingText | node <skill_dir>/bin/council.cjs patch-ranking `
@@ -117,33 +121,23 @@ $rankingText | node <skill_dir>/bin/council.cjs patch-ranking `
   --ranker <model_id>
 ```
 
-(The helper parses the `FINAL RANKING:` section automatically using the same regex as the test suite. Pass `--parsed '[...]'` only if you've already parsed it yourself.)
+(The helper parses `FINAL RANKING:` automatically.)
 
-Once all rankings are in (or all timed out), compute and PATCH the aggregate:
+Once all rankings are in:
 
 ```
 node <skill_dir>/bin/council.cjs aggregate --tid <turn_id> --cid <conversation_id>
 ```
 
-### Step 3 — Chairman synthesis (single `task` dispatch)
+### Step 3 — Chairman synthesis
 
-Dispatch one `task` sub-agent with `model` = the `chairman` id from init's output. Build the prompt from `<skill_dir>/prompts/chairman.md`:
+Single dispatch using `chairman` + `chairman_backend` from init's output.
 
-- Replace `{{QUESTION}}` with the user's exact question.
-- Replace `{{STAGE1}}` with a concatenation, each councillor formatted as:
-  ```
-  Model: <councillor_id>
-  Response: <text>
+The chairman prompt is `<skill_dir>/prompts/chairman.md` with `{{QUESTION}}`, `{{STAGE1}}` (each councillor's response prefixed `Model: <id>\nResponse: <text>\n\n`), and `{{STAGE2}}` (each ranker's raw text prefixed `Model: <id>\nRanking: <raw>\n\n`).
 
-  ```
-- Replace `{{STAGE2}}` with each ranker formatted as:
-  ```
-  Model: <ranker_id>
-  Ranking: <raw ranking text>
+If `chairman_backend == task`, dispatch a `task` sub-agent. If `github-models`, use the `call` helper.
 
-  ```
-
-When the chairman returns, PATCH the synthesis (this also persists the conversation to disk):
+When the chairman returns:
 
 ```powershell
 $synthesis | node <skill_dir>/bin/council.cjs synthesize `
@@ -153,11 +147,11 @@ $synthesis | node <skill_dir>/bin/council.cjs synthesize `
 
 ### Step 4 — Respond to the user
 
-After Step 3 completes, tell the user:
+After Step 3, tell the user:
 
 > "Synthesis ready at \<url\>. Final answer below."
 
-Then paste the chairman's synthesis as markdown in the chat. Brief one-line summary of how the council ranked the councillors is welcome.
+Then paste the chairman's synthesis as markdown in the chat.
 
 **You are NOT done before this step.**
 
@@ -194,15 +188,16 @@ Returns `{"events":[...]}` and truncates the file. For v0.1 this is empty (the b
 
 | Helper | Purpose |
 |---|---|
-| `init --question "..."` | Start server (if needed), create conversation + turn, return ids + council config |
+| `init --question "..."` | Start server (if needed), create conversation + turn, return ids + council config (incl. each councillor's `backend`) |
 | `follow-up --question "..." --cid <cid>` | New turn on existing conversation |
+| `call --backend github-models --model <id> [--max-tokens N] [--timeout-ms N]` (stdin: prompt) | Synchronously call a GitHub Models model. Returns response text on stdout, `{latency_ms, usage}` on stderr |
 | `patch-councillor --tid X --cid Y --id <model> --status ok --latency-ms N` (stdin: response) | Push one councillor's response |
 | `advance --tid X --cid Y --stage N` | Transition turn to next stage |
-| `set-label-map --tid X --cid Y --map '{...}'` | Set anonymisation map (server keeps this) |
+| `set-label-map --tid X --cid Y --map '{...}'` | Set anonymisation map |
 | `patch-ranking --tid X --cid Y --ranker <model>` (stdin: raw text) | Push one ranking; parser runs automatically |
 | `aggregate --tid X --cid Y` | Compute + PATCH aggregate rankings |
 | `synthesize --tid X --cid Y --model <chairman>` (stdin: synthesis md) | PATCH stage 3, persists to disk |
-| `read-events` | Drain browser-side events file (v0.2 feature) |
+| `read-events` | Drain browser-side events file (future use) |
 | `status` | Show server info + conversation count |
 
 ## Per-session state lives under `<cwd>/.llm-council/`
