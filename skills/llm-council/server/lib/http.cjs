@@ -57,7 +57,9 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath 
       const body = await readJson(req);
       const v = validateConfig(body);
       if (!v.ok) return json(res, 400, { error: v.error });
-      fs.writeFileSync(runtimeConfigPath, JSON.stringify(body, null, 2));
+      // Strip read-only metadata fields that may have round-tripped from GET /api/config.
+      const { source, warning, ...persistable } = body;
+      fs.writeFileSync(runtimeConfigPath, JSON.stringify(persistable, null, 2));
       emit({ type: 'config-changed' });
       return json(res, 200, { ok: true });
     }
