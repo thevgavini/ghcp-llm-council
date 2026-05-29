@@ -45,11 +45,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .btn{padding:8px 12px;border-radius:8px;border:1px solid var(--hairline-strong);background:var(--surface-elev);color:var(--ink);font-family:inherit;font-size:13px;cursor:pointer;text-align:left}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--ink-mute)}
 .btn.primary{background:var(--accent);color:#fff;border-color:transparent;font-weight:500}
-.history{flex:1;display:flex;flex-direction:column;gap:4px;overflow-y:auto;margin-top:8px}
-.history .item{padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink-soft)}
-.history .item:hover{background:var(--accent-soft)}
+.history{flex:1;display:flex;flex-direction:column;gap:2px;overflow-y:auto;margin-top:8px;margin-left:-4px;margin-right:-4px}
+.history .item{appearance:none;border:none;background:transparent;display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;cursor:pointer;font:inherit;font-family:inherit;font-size:13px;color:var(--ink-soft);line-height:1.35;transition:background .12s ease,color .12s ease;overflow:hidden}
+.history .item .title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.history .item .date{display:block;font-size:11px;color:var(--ink-faint);margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.history .item:hover{background:var(--bg);color:var(--ink)}
+.history .item:hover .date{color:var(--ink-mute)}
 .history .item.active{background:var(--accent-soft);color:var(--accent)}
-.history .item .date{display:block;font-size:11px;color:var(--ink-faint);margin-top:2px;font-variant-numeric:tabular-nums}
+.history .item.active .title{font-weight:600}
+.history .item.active .date{color:var(--accent);opacity:.7}
 .sidebar-footer{border-top:1px solid var(--hairline);padding-top:12px;display:flex;flex-direction:column;gap:4px}
 
 #main{padding:0;height:100vh;overflow-y:auto;min-width:0}
@@ -155,6 +159,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .aggregate th,.aggregate td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--hairline)}
 .aggregate th{background:var(--bg);font-weight:500;color:var(--ink-mute);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
 .aggregate td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Stage 2 — ranking ballot chips. Compact horizontal chain showing the
+   parsed ranking order, with a rank badge per chip. */
+.ballot-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0 14px}
+.ballot-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;background:var(--bg);border:1px solid var(--hairline);border-radius:999px;font-size:12px;color:var(--ink-soft);font-weight:500}
+.ballot-chip-rank{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-family:var(--mono);font-size:10px;font-weight:600}
+.ballot-arrow{color:var(--ink-faint);font-size:13px;line-height:1}
 
 .synthesis{background:linear-gradient(180deg,var(--surface) 0%,var(--accent-soft) 100%);border:1px solid var(--accent-line);border-radius:var(--r-lg);padding:32px;box-shadow:var(--shadow-md);position:relative;overflow:hidden}
 .synthesis::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}

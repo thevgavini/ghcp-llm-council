@@ -140,8 +140,8 @@ function turnBlockHtml(turn, idx) {
 
 function renderSidebar() {
   const html = state.conversations.map((c) => `
-    <button class="item ${c.id === state.currentId ? 'active' : ''}" data-id="${c.id}">
-      ${escapeHtml(c.title)}
+    <button class="item ${c.id === state.currentId ? 'active' : ''}" data-id="${c.id}" title="${escapeHtml(c.title)}">
+      <span class="title">${escapeHtml(c.title)}</span>
       <span class="date">${new Date(c.created_at).toLocaleString()}</span>
     </button>
   `).join('');
@@ -294,18 +294,25 @@ function stage2Html(turn) {
           <div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>
         </div>`;
     }
+    // Render parsed rankings as a chain of chip pills, which is the most
+    // important info on this card. The free-form rationale is shown below
+    // and collapses by default (matches stage-1 councillor cards).
+    const parsedChips = (r.parsed && r.parsed.length)
+      ? r.parsed.map((label, i) => `<span class="ballot-chip"><span class="ballot-chip-rank">${i+1}</span>${escapeHtml(label)}</span>`).join('<span class="ballot-arrow">›</span>')
+      : `<span class="muted">No parseable ranking in this ballot.</span>`;
     return `
       <div class="councillor">
         <div class="councillor-head">
           <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
-            <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
+            <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(r.ranker)}</div>
           </div>
           <span class="check">✓</span>
         </div>
-        <div class="response expanded">${safeMd(r.raw || '')}</div>
-        <div class="muted" style="margin-top:8px">Parsed: ${r.parsed && r.parsed.length ? r.parsed.map(escapeHtml).join(' › ') : '(unparseable)'}</div>
+        <div class="ballot-chips">${parsedChips}</div>
+        <div class="response">${safeMd(r.raw || '')}</div>
+        <div class="expand-row" data-expand>Read full rationale →</div>
       </div>`;
   }).join('');
 
