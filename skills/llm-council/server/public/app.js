@@ -268,10 +268,22 @@ function councillorCardHtml(c, council) {
 
 function stage2Html(turn) {
   const council = state.config?.council || [];
-  // Build a councillor-keyed view: render a ranker card for every councillor,
-  // showing real ballots where present and skeletons for the rest. Mirrors
-  // stage1's approach so the layout never collapses when the stage tab is
-  // clicked before all rankings arrive.
+  // Resolve a "Response A"-style label to the real councillor it points at,
+  // using the turn's anonymisation map. Falls back to the raw label when the
+  // map isn't populated yet (early in stage 2) so we never render undefined.
+  const resolve = (label) => {
+    const cid = turn.label_map && turn.label_map[label];
+    if (!cid) return { id: null, label, meta: { vendor: 'Other', display: label } };
+    const meta = council.find((c) => c.id === cid) || { vendor: 'Other', display: cid };
+    return { id: cid, label, meta };
+  };
+  const avatarDot = (meta) => {
+    const initial = (meta.display || '?').slice(0, 1).toUpperCase();
+    return `<span class="avatar avatar-sm" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</span>`;
+  };
+
+  // Build a councillor-keyed view so the cards stay in council order with
+  // skeletons for ballots still in flight.
   const byRanker = new Map(turn.rankings.map((r) => [r.ranker, r]));
   const rows = council.length
     ? council.map((c) => byRanker.get(c.id) || { ranker: c.id, _pending: true })
@@ -294,11 +306,11 @@ function stage2Html(turn) {
           <div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>
         </div>`;
     }
-    // Render parsed rankings as a chain of chip pills, which is the most
-    // important info on this card. The free-form rationale is shown below
-    // and collapses by default (matches stage-1 councillor cards).
     const parsedChips = (r.parsed && r.parsed.length)
-      ? r.parsed.map((label, i) => `<span class="ballot-chip"><span class="ballot-chip-rank">${i+1}</span>${escapeHtml(label)}</span>`).join('<span class="ballot-arrow">›</span>')
+      ? r.parsed.map((label, i) => {
+          const { meta: rm } = resolve(label);
+          return `<span class="ballot-chip"><span class="ballot-chip-rank">${i+1}</span>${avatarDot(rm)}<span class="ballot-chip-name">${escapeHtml(rm.display)}</span></span>`;
+        }).join('<span class="ballot-arrow">›</span>')
       : `<span class="muted">No parseable ranking in this ballot.</span>`;
     return `
       <div class="councillor">
@@ -316,10 +328,19 @@ function stage2Html(turn) {
       </div>`;
   }).join('');
 
+  // Aggregate table: also de-anonymise with avatars.
   const agg = turn.aggregate?.length ? `
     <div class="aggregate"><table>
       <thead><tr><th>Rank</th><th>Model</th><th>Avg position</th><th>Votes</th></tr></thead>
-      <tbody>${turn.aggregate.map((a, i) => `<tr><td class="num">${i+1}</td><td>${escapeHtml(council.find((c)=>c.id===a.model)?.display || a.model)}</td><td class="num">${a.avg.toFixed(2)}</td><td class="num">${a.votes}</td></tr>`).join('')}</tbody>
+      <tbody>${turn.aggregate.map((a, i) => {
+        const meta = council.find((c) => c.id === a.model) || { vendor: 'Other', display: a.model };
+        return `<tr>
+          <td class="num">${i+1}</td>
+          <td><span class="agg-model">${avatarDot(meta)}<span>${escapeHtml(meta.display || a.model)}</span></span></td>
+          <td class="num">${a.avg.toFixed(2)}</td>
+          <td class="num">${a.votes}</td>
+        </tr>`;
+      }).join('')}</tbody>
     </table></div>` : '';
 
   return `<div class="councillors">${rankerNodes}</div>${agg}`;
