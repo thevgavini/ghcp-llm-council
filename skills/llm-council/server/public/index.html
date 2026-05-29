@@ -15,7 +15,7 @@
         <div class="brand-mark"></div>
         <div class="brand-name">Council<span>panel of LLMs</span></div>
       </header>
-      <button id="new-conversation" class="btn">+ New conversation</button>
+      <button id="new-conversation" class="btn" title="To start a new conversation, ask in your CLI">+ New conversation</button>
       <nav id="history" class="history"></nav>
       <footer class="sidebar-footer">
         <button id="open-settings" class="btn ghost">⚙ Settings</button>
@@ -24,8 +24,16 @@
 
     <main id="main">
       <section id="empty" class="empty">
-        <h1>Ask the council.</h1>
-        <p class="subtitle">Or type your question in the terminal — it'll appear here.</p>
+        <div class="empty-inner">
+          <div class="empty-mark"></div>
+          <h1 class="empty-title">Ask the council.</h1>
+          <p class="empty-sub">A panel of LLMs deliberates on your question — independent first opinions, anonymised peer review, and a chairman's synthesis. Watch it unfold here, live.</p>
+          <div class="empty-cta">
+            <p class="empty-cta-label">Ask in your Copilot CLI:</p>
+            <pre class="empty-cmd"><code>ask the council why X</code></pre>
+            <p class="empty-hint">Each question runs a fresh 3-stage deliberation. Past conversations appear in the sidebar.</p>
+          </div>
+        </div>
       </section>
 
       <section id="conversation" hidden>
@@ -38,10 +46,10 @@
         <div id="stage-rail" class="stage-rail"></div>
         <div id="stage-content" class="stage-content"></div>
 
-        <form id="composer" class="composer">
-          <input id="composer-input" placeholder="Ask the council a follow-up…" autocomplete="off">
-          <span class="kbd">⏎</span>
-        </form>
+        <div class="cli-followup">
+          <span class="kbd">CLI</span>
+          <span>To ask a follow-up, type in your Copilot CLI: <code>follow up: …</code></span>
+        </div>
       </section>
     </main>
 

@@ -4,7 +4,7 @@ const state = {
   conversations: [],
   currentId: null,
   conversation: null,
-  activeStage: null  // user-selected tab; null = follow turn.stage
+  activeStages: {}  // turn_id -> stage number selected by user; absent = follow turn.stage
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -66,7 +66,7 @@ async function init() {
 
 async function selectConversation(cid) {
   state.currentId = cid;
-  state.activeStage = null;  // reset to "follow turn.stage" on conversation switch
+  state.activeStages = {};  // reset per-turn tab selections on conversation switch
   state.conversation = await api('GET', `/api/conversations/${cid}`);
   render();
 }
@@ -81,13 +81,46 @@ function render() {
   }
   $('#empty').hidden = true;
   $('#conversation').hidden = false;
-  const turn = state.conversation.turns.at(-1);
-  $('#conv-question').textContent = turn.question;
-  $('#conv-meta').innerHTML = metaHtml(turn);
-  $('#stage-rail').innerHTML = stageRailHtml(turn);
-  $('#stage-content').innerHTML = stageContentHtml(turn);
-  bindStageClicks(turn);
+
+  const conv = state.conversation;
+  const turns = conv.turns;
+  const latest = turns.at(-1);
+
+  // Top header shows the *first* question (the conversation's reason for being)
+  // and overall meta. Each turn underneath has its own question + stage rail.
+  $('#conv-question').textContent = turns[0]?.question ?? '';
+  $('#conv-meta').innerHTML = metaHtml(latest);
+
+  // Render the stack of turns into a container that replaces the old single
+  // stage-rail + stage-content pair.
+  $('#stage-rail').innerHTML = '';
+  $('#stage-content').innerHTML = turns.map(turnBlockHtml).join('');
+
+  turns.forEach((t) => {
+    bindStageClicks(t);
+  });
   bindCardClicks();
+
+  // Scroll latest turn into view if this was a new-turn event
+  const lastEl = document.getElementById(`turn-${latest.id}`);
+  if (lastEl && turns.length > 1) lastEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function turnBlockHtml(turn, idx) {
+  const isFirst = idx === 0;
+  const heading = isFirst
+    ? ''
+    : `<div class="turn-header">
+         <div class="eyebrow">Follow-up #${idx}</div>
+         <h2 class="turn-question">${escapeHtml(turn.question)}</h2>
+       </div>`;
+  return `
+    <section class="turn-block" id="turn-${turn.id}">
+      ${heading}
+      <div class="stage-rail" data-turn="${turn.id}" data-rail>${stageRailHtml(turn)}</div>
+      <div class="stage-content" data-turn="${turn.id}" data-content>${stageContentHtml(turn)}</div>
+    </section>
+  `;
 }
 
 function renderSidebar() {
@@ -125,7 +158,7 @@ function stageRailHtml(turn) {
 }
 
 function effectiveStage(turn) {
-  if (state.activeStage != null) return state.activeStage;
+  if (state.activeStages[turn.id] != null) return state.activeStages[turn.id];
   // Default: show the most-advanced reachable stage with content
   if (turn.synthesis) return 3;
   if (turn.stage >= 2 || turn.rankings?.length) return 2;
@@ -133,12 +166,14 @@ function effectiveStage(turn) {
 }
 
 function bindStageClicks(turn) {
-  $$('#stage-rail .stage').forEach((el) => {
+  const railEl = document.querySelector(`[data-rail][data-turn="${turn.id}"]`);
+  const contentEl = document.querySelector(`[data-content][data-turn="${turn.id}"]`);
+  if (!railEl) return;
+  railEl.querySelectorAll('.stage').forEach((el) => {
     el.addEventListener('click', () => {
-      state.activeStage = Number(el.dataset.stage);
-      // Re-render only the rail + content (cheap, preserves scroll)
-      $('#stage-rail').innerHTML = stageRailHtml(turn);
-      $('#stage-content').innerHTML = stageContentHtml(turn);
+      state.activeStages[turn.id] = Number(el.dataset.stage);
+      railEl.innerHTML = stageRailHtml(turn);
+      contentEl.innerHTML = stageContentHtml(turn);
       bindStageClicks(turn);
       bindCardClicks();
     });
@@ -248,41 +283,26 @@ function bindCardClicks() {
   $$('#stage-content [data-action="retry-councillor"]').forEach((b) => {
     b.addEventListener('click', async (ev) => {
       ev.stopPropagation();
+      const turnId = b.closest('[data-content]')?.dataset.turn
+                  ?? state.conversation.turns.at(-1).id;
       await api('POST', '/api/events', {
         type: 'retry-councillor',
         conversation_id: state.currentId,
-        turn_id: state.conversation.turns.at(-1).id,
+        turn_id: turnId,
         councillor_id: b.dataset.id
       });
     });
   });
 }
 
-// ---- Composer (follow-ups) -------------------------------------------------
-async function submitFollowUp(q) {
-  // Create a new turn on the current conversation so the UI immediately shows it.
-  const turn = await api('POST', `/api/conversations/${state.currentId}/turns`, { question: q });
-  // Notify any orchestrator listening on the events file.
-  await api('POST', '/api/events', {
-    type: 'follow-up',
-    conversation_id: state.currentId,
-    turn_id: turn.id,
-    question: q
-  });
-  state.activeStage = 1;
+async function startNewConversation_REMOVED() {
+  // Browser-initiated new conversation is intentionally disabled in v0.1.
+  // Every question comes through the Copilot CLI; this stub is left for
+  // future re-introduction once orchestrator auto-dispatch is wired up.
 }
 
-async function startNewConversation(q) {
-  const conv = await api('POST', '/api/conversations', { question: q });
-  const turn = await api('POST', `/api/conversations/${conv.id}/turns`, { question: q });
-  await api('POST', '/api/events', {
-    type: 'new-conversation',
-    conversation_id: conv.id,
-    turn_id: turn.id,
-    question: q
-  });
-  state.activeStage = 1;
-  await selectConversation(conv.id);
+async function submitFollowUp_REMOVED() {
+  // Browser-initiated follow-ups are intentionally disabled in v0.1.
 }
 
 // ---- Settings drawer -------------------------------------------------------
@@ -304,21 +324,13 @@ function renderSettings() {
 }
 
 function bindEvents() {
-  $('#new-conversation').addEventListener('click', async () => {
-    const q = window.prompt('What would you like to ask the council?');
-    if (q && q.trim()) {
-      await startNewConversation(q.trim());
-    }
+  $('#new-conversation').addEventListener('click', () => {
+    state.currentId = null;
+    state.conversation = null;
+    render();
   });
   $('#open-settings').addEventListener('click', () => { $('#settings-drawer').hidden = false; renderSettings(); });
   $('#close-settings').addEventListener('click', () => { $('#settings-drawer').hidden = true; });
-  $('#composer').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const v = $('#composer-input').value.trim();
-    if (!v || !state.currentId) return;
-    $('#composer-input').value = '';
-    await submitFollowUp(v);
-  });
   $('#settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const cfg = JSON.parse(JSON.stringify(state.config));
