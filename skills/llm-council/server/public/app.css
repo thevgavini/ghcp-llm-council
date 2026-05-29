@@ -49,6 +49,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .history .item{appearance:none;border:none;background:transparent;display:block;width:100%;text-align:left;padding:10px 12px;border-radius:8px;cursor:pointer;font:inherit;font-family:inherit;font-size:13px;color:var(--ink-soft);line-height:1.35;transition:background .12s ease,color .12s ease;overflow:hidden}
 .history .item .title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
 .history .item .date{display:block;font-size:11px;color:var(--ink-faint);margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.history .item .row-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:3px}
+.history .item .row-meta .date{margin-top:0}
 .history .item:hover{background:var(--bg);color:var(--ink)}
 .history .item:hover .date{color:var(--ink-mute)}
 .history .item.active{background:var(--accent-soft);color:var(--accent)}
@@ -71,6 +73,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .cli-followup{margin-top:32px;padding:14px 18px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);display:flex;align-items:center;gap:12px;font-size:13px;color:var(--ink-mute)}
 .cli-followup code{font-family:var(--mono);font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--ink)}
 .eyebrow{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:12px}
+.conv-eyebrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.conv-eyebrow .eyebrow{margin-bottom:0}
+
+/* Mode pill — small uppercase tag with mode-specific colour. Hidden for
+   the default 'general' mode so the UI stays uncluttered. */
+.mode-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid transparent;line-height:1.6;flex-shrink:0}
+.mode-review  {background:rgba(192,71,58,.10);  color:#c0473a; border-color:rgba(192,71,58,.20)}
+.mode-design  {background:rgba(91,76,255,.10);  color:var(--accent); border-color:var(--accent-line)}
+.mode-plan    {background:rgba(31,109,193,.10); color:#1f6dc1; border-color:rgba(31,109,193,.22)}
+.mode-research{background:rgba(47,158,107,.10); color:#2f9e6b; border-color:rgba(47,158,107,.22)}
+.mode-general {background:var(--bg);            color:var(--ink-mute); border-color:var(--hairline-strong)}
+@media (prefers-color-scheme: dark) {
+  .mode-review  {background:rgba(192,71,58,.18); color:#e87966; border-color:rgba(192,71,58,.30)}
+  .mode-plan    {background:rgba(80,160,255,.18);color:#7ab4ff; border-color:rgba(80,160,255,.30)}
+  .mode-research{background:rgba(80,200,140,.18);color:#7fd3a4; border-color:rgba(80,200,140,.30)}
+}
 .question{font-size:28px;font-weight:500;letter-spacing:-.025em;line-height:1.25}
 .session-meta{display:flex;gap:12px;margin-top:14px;font-size:12px;color:var(--ink-mute);font-variant-numeric:tabular-nums}
 

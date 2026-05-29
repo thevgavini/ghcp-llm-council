@@ -131,6 +131,17 @@ function render() {
 
   $('#conv-question').textContent = turn.question || '';
   $('#conv-meta').innerHTML = metaHtml(turn);
+  // Mode pill in the header — hidden for general mode (the default) so
+  // there's no noise when nothing special is going on.
+  const pill = $('#conv-mode-pill');
+  const mode = (state.conversation && state.conversation.mode) || 'general';
+  if (mode && mode !== 'general') {
+    pill.hidden = false;
+    pill.className = `mode-pill mode-${mode}`;
+    pill.textContent = mode;
+  } else {
+    pill.hidden = true;
+  }
 
   // Each sidebar entry shows ONE question. Render only that turn's stages —
   // never stack multiple turns in the canvas.
@@ -142,12 +153,16 @@ function render() {
 }
 
 function renderSidebar() {
-  // Flatten every turn from every conversation into its own sidebar entry.
-  // Each question gets its own tab, no entry shows more than one answer.
   const entries = [];
   for (const c of state.conversations) {
     for (const t of (c.turns || [])) {
-      entries.push({ cid: c.id, tid: t.id, question: t.question || c.title, created_at: t.created_at || c.created_at });
+      entries.push({
+        cid: c.id,
+        tid: t.id,
+        question: t.question || c.title,
+        created_at: t.created_at || c.created_at,
+        mode: c.mode || 'general'
+      });
     }
   }
   entries.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
@@ -155,7 +170,10 @@ function renderSidebar() {
   const html = entries.map((e) => `
     <button class="item ${e.tid === state.currentTurnId ? 'active' : ''}" data-cid="${e.cid}" data-tid="${e.tid}" title="${escapeHtml(e.question)}">
       <span class="title">${escapeHtml(e.question)}</span>
-      <span class="date">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
+      <span class="row-meta">
+        ${e.mode && e.mode !== 'general' ? `<span class="mode-pill mode-${escapeHtml(e.mode)}">${escapeHtml(e.mode)}</span>` : ''}
+        <span class="date">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
+      </span>
     </button>
   `).join('');
   $('#history').innerHTML = html || '<div class="muted" style="padding:8px">No questions yet.</div>';
