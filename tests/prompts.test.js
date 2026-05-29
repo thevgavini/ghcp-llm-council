@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const read = (name) => fs.readFileSync(path.join(__dirname, '../prompts', name), 'utf8');
+const read = (name) => fs.readFileSync(path.join(__dirname, '../skills/llm-council/prompts', name), 'utf8');
 
 test('councillor prompt forbids tool use', () => {
   const t = read('councillor.md');

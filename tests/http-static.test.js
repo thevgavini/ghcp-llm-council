@@ -3,16 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createHttpServer } = require('../server/lib/http.cjs');
+const { createHttpServer } = require('../skills/llm-council/server/lib/http.cjs');
 
 let server, url, tmp;
 before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'http-'));
   server = createHttpServer({
-    publicDir: path.join(__dirname, '../server/public'),
+    publicDir: path.join(__dirname, '../skills/llm-council/server/public'),
     stateDir: path.join(tmp, 'state'),
     conversationsDir: path.join(tmp, 'conversations'),
-    defaultsPath: path.join(__dirname, '../defaults/council.json')
+    defaultsPath: path.join(__dirname, '../skills/llm-council/defaults/council.json')
   });
   await server.listen(0, '127.0.0.1');
   url = `http://127.0.0.1:${server.port}`;

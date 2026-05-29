@@ -1,0 +1,15 @@
+{
+  "name": "ghcp-llm-council",
+  "description": "Single-plugin marketplace shipping the llm-council skill.",
+  "owner": {
+    "name": "ghcp-llm-council contributors"
+  },
+  "plugins": [
+    {
+      "name": "ghcp-llm-council",
+      "description": "A panel of LLMs deliberates on your question and synthesises a final answer, with a refined live web UI.",
+      "version": "0.1.0",
+      "source": "./"
+    }
+  ]
+}

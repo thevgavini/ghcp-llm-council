@@ -1,3 +1,8 @@
+---
+name: llm-council
+description: Use when the user asks the council, requests a panel of LLMs, wants multiple models to weigh in, says "ask the council X", "council take on Y", or "multi-model opinion on Z". Runs a 3-stage deliberation (parallel first opinions, anonymised peer review, chairman synthesis) with a live web UI.
+---
+
 # llm-council
 
 A panel of LLMs deliberates on the user's question across three stages — independent first opinions, anonymised peer review, and a chairman's synthesis — visualised live in a local web UI.

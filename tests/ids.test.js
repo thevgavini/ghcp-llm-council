@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { newId, isoNow } = require('../server/lib/ids.cjs');
+const { newId, isoNow } = require('../skills/llm-council/server/lib/ids.cjs');
 
 test('newId produces a prefixed, hex-suffixed id', () => {
   const id = newId('conv');

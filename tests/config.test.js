@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { validateConfig, loadConfig } = require('../server/lib/config.cjs');
+const { validateConfig, loadConfig } = require('../skills/llm-council/server/lib/config.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -52,7 +52,7 @@ test('validateConfig rejects min_responses_to_proceed greater than council size'
 
 test('loadConfig falls back to defaults when runtime file is absent', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-'));
-  const defaultsPath = path.join(__dirname, '../defaults/council.json');
+  const defaultsPath = path.join(__dirname, '../skills/llm-council/defaults/council.json');
   const result = loadConfig({ runtimePath: path.join(tmp, 'missing.json'), defaultsPath });
   assert.ok(Array.isArray(result.council));
   assert.equal(result.source, 'defaults');
@@ -62,7 +62,7 @@ test('loadConfig uses runtime file when present and valid', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-'));
   const runtime = path.join(tmp, 'council.json');
   fs.writeFileSync(runtime, JSON.stringify(valid()));
-  const defaultsPath = path.join(__dirname, '../defaults/council.json');
+  const defaultsPath = path.join(__dirname, '../skills/llm-council/defaults/council.json');
   const result = loadConfig({ runtimePath: runtime, defaultsPath });
   assert.equal(result.source, 'runtime');
   assert.equal(result.council.length, 2);
@@ -72,7 +72,7 @@ test('loadConfig falls back to defaults when runtime file is malformed JSON', ()
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-'));
   const runtime = path.join(tmp, 'council.json');
   fs.writeFileSync(runtime, '{ not valid json');
-  const defaultsPath = path.join(__dirname, '../defaults/council.json');
+  const defaultsPath = path.join(__dirname, '../skills/llm-council/defaults/council.json');
   const result = loadConfig({ runtimePath: runtime, defaultsPath });
   assert.equal(result.source, 'defaults');
   assert.match(result.warning, /malformed/i);

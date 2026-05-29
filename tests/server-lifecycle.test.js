@@ -22,7 +22,7 @@ function readJsonLine(stream) {
 
 test('server.cjs prints server-started JSON and writes server-info', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'srv-'));
-  const child = spawn(process.execPath, [path.join(__dirname, '../server/server.cjs')], {
+  const child = spawn(process.execPath, [path.join(__dirname, '../skills/llm-council/server/server.cjs')], {
     env: { ...process.env, LLM_COUNCIL_DIR: tmp, LLM_COUNCIL_HOST: '127.0.0.1' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -42,7 +42,7 @@ test('server.cjs exits when owner PID dies', async (t) => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'srv-'));
   // Spawn a short-lived "owner" process whose PID we hand to the server.
   const owner = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 2000)']);
-  const server = spawn(process.execPath, [path.join(__dirname, '../server/server.cjs')], {
+  const server = spawn(process.execPath, [path.join(__dirname, '../skills/llm-council/server/server.cjs')], {
     env: {
       ...process.env,
       LLM_COUNCIL_DIR: tmp,

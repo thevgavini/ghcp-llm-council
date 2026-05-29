@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createStore } = require('../server/lib/store.cjs');
+const { createStore } = require('../skills/llm-council/server/lib/store.cjs');
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'store-'));

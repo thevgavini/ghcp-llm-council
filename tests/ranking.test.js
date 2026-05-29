@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseRanking, aggregate } = require('../server/lib/ranking.cjs');
+const { parseRanking, aggregate } = require('../skills/llm-council/server/lib/ranking.cjs');
 
 const fix = (name) => fs.readFileSync(path.join(__dirname, 'fixtures/rankings', name), 'utf8');
 

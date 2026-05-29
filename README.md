@@ -16,8 +16,29 @@ You watch it unfold at a local URL with live updates, and you can ask follow-ups
 ## Install
 
 ```bash
-git clone https://github.com/USER/ghcp-llm-council.git ~/.copilot/skills/llm-council
+# 1. Clone (anywhere)
+git clone https://github.com/USER/ghcp-llm-council.git ~/ghcp-llm-council
+
+# 2. Register as a Copilot CLI plugin (one-time setup)
+mkdir -p ~/.copilot/installed-plugins/ghcp-llm-council-marketplace
+ln -s ~/ghcp-llm-council ~/.copilot/installed-plugins/ghcp-llm-council-marketplace/ghcp-llm-council
+
+# 3. Add to ~/.copilot/settings.json under extraKnownMarketplaces:
+#   "ghcp-llm-council-marketplace": {
+#     "source": { "source": "local", "path": "<absolute path to the symlink above>" }
+#   }
+# And under enabledPlugins:
+#   "ghcp-llm-council@ghcp-llm-council-marketplace": true
+
+# 4. Add to ~/.copilot/config.json under installedPlugins:
+#   { "name": "ghcp-llm-council", "marketplace": "ghcp-llm-council-marketplace",
+#     "version": "0.1.0", "installed_at": "<now>", "enabled": true,
+#     "cache_path": "<absolute path to the symlink above>" }
+
+# 5. Restart your Copilot CLI session.
 ```
+
+On Windows substitute `mklink /J` for `ln -s`.
 
 Requires Node 20+ and ghcp CLI. No `npm install` step — the server has zero npm dependencies.
 

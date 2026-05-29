@@ -18,7 +18,7 @@ function readJsonLine(stream) {
 
 test('orchestrator can drive a full 3-stage turn end-to-end', async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-'));
-  const server = spawn(process.execPath, [path.join(__dirname, '../server/server.cjs')], {
+  const server = spawn(process.execPath, [path.join(__dirname, '../skills/llm-council/server/server.cjs')], {
     env: { ...process.env, LLM_COUNCIL_DIR: tmp, LLM_COUNCIL_HOST: '127.0.0.1' },
     stdio: ['ignore', 'pipe', 'pipe']
   });

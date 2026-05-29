@@ -5,17 +5,17 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createHttpServer } = require('../server/lib/http.cjs');
-const { decodeFrame, encodeFrame, OPCODES } = require('../server/lib/ws.cjs');
+const { createHttpServer } = require('../skills/llm-council/server/lib/http.cjs');
+const { decodeFrame, encodeFrame, OPCODES } = require('../skills/llm-council/server/lib/ws.cjs');
 
 let server, tmp;
 before(async () => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ws-'));
   server = createHttpServer({
-    publicDir: path.join(__dirname, '../server/public'),
+    publicDir: path.join(__dirname, '../skills/llm-council/server/public'),
     stateDir: path.join(tmp, 'state'),
     conversationsDir: path.join(tmp, 'conversations'),
-    defaultsPath: path.join(__dirname, '../defaults/council.json')
+    defaultsPath: path.join(__dirname, '../skills/llm-council/defaults/council.json')
   });
   await server.listen(0, '127.0.0.1');
 });

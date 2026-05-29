@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { computeAcceptKey, encodeFrame, decodeFrame, OPCODES } = require('../server/lib/ws.cjs');
+const { computeAcceptKey, encodeFrame, decodeFrame, OPCODES } = require('../skills/llm-council/server/lib/ws.cjs');
 
 test('computeAcceptKey matches RFC 6455 example', () => {
   // Sec-WebSocket-Key from RFC 6455 §1.3
