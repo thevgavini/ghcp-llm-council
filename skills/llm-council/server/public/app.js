@@ -165,10 +165,16 @@ function renderSidebar() {
 }
 
 function metaHtml(turn) {
+  // Prefer the conversation's snapshotted lineup (mode-resolved at init
+  // time) over the global config, so the meta line is always honest about
+  // who actually answered.
+  const conv = state.conversation || {};
+  const council = conv.council || state.config?.council || [];
+  const chairman = conv.chairman || state.config?.chairman || '';
   const live = turn.councillors.filter((c) => c.status === 'ok').length;
-  return `<span>${live}/${turn.councillors.length || (state.config?.council.length || 0)} councillors</span>
+  return `<span>${live}/${turn.councillors.length || council.length} councillors</span>
           <span>·</span>
-          <span>Chairman · ${escapeHtml(state.config?.chairman || '')}</span>`;
+          <span>Chairman · ${escapeHtml(chairman)}</span>`;
 }
 
 function stageRailHtml(turn) {
@@ -221,7 +227,11 @@ function stageContentHtml(turn) {
 }
 
 function stage1Html(turn) {
-  const knownCouncil = state.config?.council || [];
+  // Prefer the snapshot on the conversation — different conversations may
+  // have used different mode-pack lineups.
+  const knownCouncil = (state.conversation && state.conversation.council)
+                    || state.config?.council
+                    || [];
   // FIX (issue 1): always render the full council list. For councillors that
   // haven't reported yet, render a skeleton placeholder so the UI stays
   // visually anchored as responses stream in one at a time.
@@ -281,7 +291,7 @@ function councillorCardHtml(c, council) {
 }
 
 function stage2Html(turn) {
-  const council = state.config?.council || [];
+  const council = (state.conversation && state.conversation.council) || state.config?.council || [];
   // Resolve a "Response A"-style label to the real councillor it points at,
   // using the turn's anonymisation map. Falls back to the raw label when the
   // map isn't populated yet (early in stage 2) so we never render undefined.
@@ -358,7 +368,7 @@ function stage3Html(turn) {
     // layout doesn't jump when the chairman's response lands.
     return `
       <div class="synthesis synthesis-pending">
-        <div class="synthesis-label"><span>Chairman</span> <span class="muted">· ${escapeHtml(state.config?.chairman || '…')}</span></div>
+        <div class="synthesis-label"><span>Chairman</span> <span class="muted">· ${escapeHtml((state.conversation && state.conversation.chairman) || state.config?.chairman || '…')}</span></div>
         <div class="thinking-label"><span class="pulse"></span>SYNTHESISING</div>
         <div class="synthesis-skeleton">
           <div class="skeleton-line" style="width:96%"></div>

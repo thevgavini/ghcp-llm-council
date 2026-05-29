@@ -113,26 +113,40 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
 
   async function route(req, res) {
     const u = req.url; const m = req.method;
-    if (m === 'GET' && u === '/api/config') {
-      return json(res, 200, loadConfig({ runtimePath: runtimeConfigPath, defaultsPath }));
+    // Strip query string for path matching, but preserve it for endpoints
+    // that care (currently /api/config supports ?mode=X).
+    const qIdx = u.indexOf('?');
+    const path = qIdx === -1 ? u : u.slice(0, qIdx);
+    const query = qIdx === -1 ? {} : Object.fromEntries(new URLSearchParams(u.slice(qIdx + 1)));
+    if (m === 'GET' && path === '/api/config') {
+      return json(res, 200, loadConfig({ runtimePath: runtimeConfigPath, defaultsPath, mode: query.mode }));
     }
-    if (m === 'PUT' && u === '/api/config') {
+    if (m === 'PUT' && path === '/api/config') {
       const body = await readJson(req);
       const v = validateConfig(body);
       if (!v.ok) return json(res, 400, { error: v.error });
       // Strip read-only metadata fields that may have round-tripped from GET /api/config.
-      const { source, warning, ...persistable } = body;
+      const { source, warning, resolved_mode, ...persistable } = body;
       fs.writeFileSync(runtimeConfigPath, JSON.stringify(persistable, null, 2));
       emit({ type: 'config-changed' });
       return json(res, 200, { ok: true });
     }
-    if (m === 'POST' && u === '/api/conversations') {
+    if (m === 'POST' && path === '/api/conversations') {
       const body = await readJson(req);
-      const result = store.createConversation({ question: body.question || '', mode: body.mode });
+      const result = store.createConversation({
+        question: body.question || '',
+        mode: body.mode,
+        // Snapshot the resolved council on the conversation so reloads,
+        // restarts, and frontend rendering all use the same lineup regardless
+        // of subsequent config edits.
+        council: body.council,
+        chairman: body.chairman,
+        chairman_backend: body.chairman_backend
+      });
       emit({ type: 'conversation-created', conversation_id: result.id });
       return json(res, 201, result);
     }
-    let mt = u.match(/^\/api\/conversations\/([^/]+)\/turns$/);
+    let mt = path.match(/^\/api\/conversations\/([^/]+)\/turns$/);
     if (mt && m === 'POST') {
       const cid = mt[1];
       if (!ID_RE.test(cid)) return json(res, 400, { error: 'invalid conversation id' });
@@ -141,7 +155,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'turn-update', conversation_id: cid, turn_id: t.id });
       return json(res, 201, t);
     }
-    mt = u.match(/^\/api\/conversations\/([^/]+)$/);
+    mt = path.match(/^\/api\/conversations\/([^/]+)$/);
     if (mt && m === 'GET') {
       const cid = mt[1];
       if (!ID_RE.test(cid)) return json(res, 400, { error: 'invalid conversation id' });
@@ -149,10 +163,10 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       if (!conv) return json(res, 404, { error: 'not found' });
       return json(res, 200, conv);
     }
-    if (m === 'GET' && u === '/api/conversations') {
+    if (m === 'GET' && path === '/api/conversations') {
       return json(res, 200, store.listConversations());
     }
-    mt = u.match(/^\/api\/turns\/([^/]+)$/);
+    mt = path.match(/^\/api\/turns\/([^/]+)$/);
     if (mt && m === 'PATCH') {
       const tid = mt[1];
       if (!ID_RE.test(tid)) return json(res, 400, { error: 'invalid turn id' });
@@ -168,7 +182,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'turn-update', conversation_id: cid, turn_id: tid, patch });
       return json(res, 200, { ok: true });
     }
-    if (m === 'POST' && u === '/api/events') {
+    if (m === 'POST' && path === '/api/events') {
       const body = await readJson(req);
       const line = JSON.stringify({ ...body, timestamp: Date.now() }) + '\n';
       fs.appendFileSync(eventsPath, line);
@@ -256,3 +270,4 @@ function sanitizeJsonReviver(key, value) {
 }
 
 module.exports = { createHttpServer };
+

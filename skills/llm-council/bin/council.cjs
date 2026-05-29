@@ -225,9 +225,17 @@ async function cmdInit(args) {
   const mode = resolveMode(args);
   const question = buildQuestionWithFiles(args.question, args.files);
   const info = await ensureServer(args['owner-pid']);
-  const conv = await api('POST', `${info.url}/api/conversations`, { question, mode });
+  // Resolve the config for this mode FIRST — the pack may swap councillors
+  // or the chairman — so we can persist the resolved lineup on the conv.
+  const config = await api('GET', `${info.url}/api/config?mode=${encodeURIComponent(mode)}`);
+  const conv = await api('POST', `${info.url}/api/conversations`, {
+    question,
+    mode,
+    council: config.council,
+    chairman: config.chairman,
+    chairman_backend: config.chairman_backend
+  });
   const turn = await api('POST', `${info.url}/api/conversations/${conv.id}/turns`, { question });
-  const config = await api('GET', `${info.url}/api/config`);
   ok({
     url: info.url,
     conversation_id: conv.id,
@@ -238,7 +246,8 @@ async function cmdInit(args) {
     chairman: config.chairman,
     chairman_backend: config.chairman_backend,
     min_responses_to_proceed: config.min_responses_to_proceed,
-    councillor_timeout_seconds: config.councillor_timeout_seconds
+    councillor_timeout_seconds: config.councillor_timeout_seconds,
+    ...(config.warning ? { warning: config.warning } : {})
   });
 }
 
@@ -247,23 +256,29 @@ async function cmdFollowUp(args) {
   if (!args.cid) die('follow-up requires --cid (existing conversation id)');
   const info = readServerInfo();
   if (!info) die('no server running; call `init` first');
-  // Inherit the conversation's original mode unless the caller overrides it.
+  // Inherit the conversation's persisted lineup so a follow-up uses the same
+  // council that answered the original question. Override mode only if asked.
   const conv = await api('GET', `${info.url}/api/conversations/${args.cid}`);
   const mode = args.mode ? resolveMode(args) : (conv.mode || 'general');
   const question = buildQuestionWithFiles(args.question, args.files);
   const turn = await api('POST', `${info.url}/api/conversations/${args.cid}/turns`, { question });
-  const config = await api('GET', `${info.url}/api/config`);
+  // Prefer the conversation's snapshotted lineup; fall back to mode-resolved
+  // config (e.g. for conversations created before snapshots existed).
+  const fallback = await api('GET', `${info.url}/api/config?mode=${encodeURIComponent(mode)}`);
+  const council = conv.council || fallback.council;
+  const chairman = conv.chairman || fallback.chairman;
+  const chairman_backend = conv.chairman_backend || fallback.chairman_backend;
   ok({
     url: info.url,
     conversation_id: args.cid,
     turn_id: turn.id,
     mode,
     prompts_dir: `prompts/${mode}`,
-    council: config.council,
-    chairman: config.chairman,
-    chairman_backend: config.chairman_backend,
-    min_responses_to_proceed: config.min_responses_to_proceed,
-    councillor_timeout_seconds: config.councillor_timeout_seconds
+    council,
+    chairman,
+    chairman_backend,
+    min_responses_to_proceed: fallback.min_responses_to_proceed,
+    councillor_timeout_seconds: fallback.councillor_timeout_seconds
   });
 }
 

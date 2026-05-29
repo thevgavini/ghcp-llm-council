@@ -6,7 +6,7 @@ function createStore({ dir }) {
   fs.mkdirSync(dir, { recursive: true });
   const mem = new Map();
 
-  function createConversation({ question, mode }) {
+  function createConversation({ question, mode, council, chairman, chairman_backend }) {
     const id = newId('conv');
     const now = isoNow();
     const conv = {
@@ -15,6 +15,11 @@ function createStore({ dir }) {
       updated_at: now,
       title: question.slice(0, 60),
       mode: mode || 'general',
+      // Snapshot the resolved lineup so subsequent reloads / restarts use
+      // the same council even if config changes underneath.
+      council: Array.isArray(council) ? council : undefined,
+      chairman: chairman || undefined,
+      chairman_backend: chairman_backend || undefined,
       turns: []
     };
     mem.set(id, conv);
