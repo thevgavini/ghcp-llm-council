@@ -76,8 +76,14 @@ async function ensureServer(ownerPid) {
     const pidFile = path.join(stateDir(), 'server.pid');
     if (fs.existsSync(pidFile)) {
       const pid = Number(fs.readFileSync(pidFile, 'utf8'));
-      if (pidAlive(pid)) return info;
+      // Belt and braces: the pid being alive is necessary but not sufficient
+      // (the OS may have recycled it for an unrelated process). Verify the
+      // server actually responds at the URL we have on file.
+      if (pidAlive(pid) && await pingHealth(info.url)) return info;
     }
+    // Stale: nuke the metadata so start.cjs gets a clean slate.
+    try { fs.unlinkSync(infoPath()); } catch {}
+    try { fs.unlinkSync(path.join(stateDir(), 'server.pid')); } catch {}
   }
   await new Promise((resolve, reject) => {
     const cargs = ['--dir', sessionDir()];
@@ -93,6 +99,29 @@ async function ensureServer(ownerPid) {
   const info2 = readServerInfo();
   if (!info2) throw new Error('server-info missing after start.cjs success');
   return info2;
+}
+
+function pingHealth(url) {
+  return new Promise((resolve) => {
+    try {
+      const u = new URL(`${url}/api/health`);
+      const req = http.request({
+        method: 'GET',
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname,
+        timeout: 800
+      }, (res) => {
+        res.resume();
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.on('timeout', () => { req.destroy(); resolve(false); });
+      req.end();
+    } catch {
+      resolve(false);
+    }
+  });
 }
 
 // ---- HTTP -----------------------------------------------------------------

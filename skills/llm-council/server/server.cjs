@@ -63,7 +63,12 @@ async function start() {
 
 function shutdown(reason) {
   const info = path.join(stateDir, 'server-info');
+  const pid = path.join(stateDir, 'server.pid');
+  // Clean up BOTH files so an idle shutdown can't leave a stale pid behind —
+  // otherwise the OS might recycle that pid for an unrelated process and
+  // ensureServer would return the dead URL on the next launch.
   if (fs.existsSync(info)) fs.unlinkSync(info);
+  if (fs.existsSync(pid)) fs.unlinkSync(pid);
   fs.writeFileSync(path.join(stateDir, 'server-stopped'), JSON.stringify({ reason, timestamp: Date.now() }) + '\n');
   console.log(JSON.stringify({ type: 'server-stopped', reason }));
   server.close().then(() => process.exit(0));
