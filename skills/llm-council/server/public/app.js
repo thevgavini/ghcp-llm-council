@@ -36,36 +36,39 @@ function connectWs() {
   const ws = new WebSocket(wsUrl);
   ws.addEventListener('message', async (ev) => {
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+    if (msg.type === 'conversation-created') {
+      // A brand-new conversation just started. Refresh the sidebar AND
+      // auto-switch to it so the user immediately sees the stage-1 skeletons
+      // (otherwise they sit on a stale loaded conversation thinking nothing
+      // is happening). The new conv has exactly one turn at this point.
+      state.conversations = await api('GET', '/api/conversations');
+      const conv = state.conversations.find((c) => c.id === msg.conversation_id);
+      const firstTurn = conv && conv.turns && conv.turns[0];
+      if (firstTurn) {
+        await selectTurn(msg.conversation_id, firstTurn.id);
+      } else {
+        renderSidebar();
+      }
+      return;
+    }
     if (msg.type === 'turn-update') {
-      // Snapshot the turn ids we knew about BEFORE refreshing, so we can
-      // detect a brand-new turn (e.g. a relaunched council in the same dir
-      // creates a new conversation while the user is still looking at the
-      // previously-loaded one).
       const knownTids = new Set();
       for (const c of state.conversations) for (const t of (c.turns || [])) knownTids.add(t.id);
 
       state.conversations = await api('GET', '/api/conversations');
 
-      // Auto-focus a never-before-seen turn so the user actually sees the
-      // councillors firing instead of staring at a stale conversation.
+      // If this turn id is new to us (e.g. a follow-up just got created on a
+      // conversation we already know about), auto-focus it.
       if (!knownTids.has(msg.turn_id)) {
         await selectTurn(msg.conversation_id, msg.turn_id);
         return;
       }
-
       if (state.currentCid === msg.conversation_id) {
         state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
         render();
       } else {
         renderSidebar();
       }
-    } else if (msg.type === 'conversation-created') {
-      // A new conversation has been created — switch to it once its first
-      // turn-update arrives. We can't switch yet because there's no turn id
-      // in this event; the immediately-following turn-update will trigger
-      // the auto-focus path above.
-      state.conversations = await api('GET', '/api/conversations');
-      renderSidebar();
     } else if (msg.type === 'config-changed') {
       state.config = await api('GET', '/api/config');
       renderSettings();
