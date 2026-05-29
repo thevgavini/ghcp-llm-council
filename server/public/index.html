@@ -1,2 +1,80 @@
-<!doctype html><html><head><meta charset="utf-8"><title>LLM Council</title></head>
-<body><h1>LLM Council UI placeholder</h1></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LLM Council</title>
+  <link rel="preconnect" href="https://rsms.me/">
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-name">Council<span>panel of LLMs</span></div>
+      </header>
+      <button id="new-conversation" class="btn">+ New conversation</button>
+      <nav id="history" class="history"></nav>
+      <footer class="sidebar-footer">
+        <button id="open-settings" class="btn ghost">⚙ Settings</button>
+      </footer>
+    </aside>
+
+    <main id="main">
+      <section id="empty" class="empty">
+        <h1>Ask the council.</h1>
+        <p class="subtitle">Or type your question in the terminal — it'll appear here.</p>
+      </section>
+
+      <section id="conversation" hidden>
+        <header class="conv-head">
+          <div class="eyebrow">Current question</div>
+          <h1 id="conv-question" class="question"></h1>
+          <div id="conv-meta" class="session-meta"></div>
+        </header>
+
+        <div id="stage-rail" class="stage-rail"></div>
+        <div id="stage-content" class="stage-content"></div>
+
+        <form id="composer" class="composer">
+          <input id="composer-input" placeholder="Ask the council a follow-up…" autocomplete="off">
+          <span class="kbd">⏎</span>
+        </form>
+      </section>
+    </main>
+
+    <aside id="settings-drawer" class="drawer" hidden>
+      <header class="drawer-head">
+        <h2>Council settings</h2>
+        <button id="close-settings" class="btn ghost">Close</button>
+      </header>
+      <form id="settings-form">
+        <label class="field">
+          <span>Chairman</span>
+          <select id="settings-chairman"></select>
+        </label>
+        <label class="field">
+          <span>Min responses to proceed</span>
+          <input id="settings-min" type="number" min="1" value="2">
+        </label>
+        <label class="field">
+          <span>Councillor timeout (seconds)</span>
+          <input id="settings-timeout" type="number" min="10" value="120">
+        </label>
+        <fieldset class="field">
+          <legend>Councillors</legend>
+          <div id="settings-councillors"></div>
+        </fieldset>
+        <div class="drawer-actions">
+          <button type="submit" class="btn primary">Save</button>
+          <span id="settings-status" class="muted"></span>
+        </div>
+      </form>
+    </aside>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
