@@ -1,0 +1,14 @@
+{
+  "name": "ghcp-llm-council",
+  "version": "0.1.0",
+  "description": "A GitHub Copilot CLI skill that runs your question past a council of LLMs.",
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "start": "node server/start.cjs"
+  },
+  "repository": { "type": "git", "url": "https://github.com/USER/ghcp-llm-council.git" }
+}

@@ -1,0 +1,4 @@
+node_modules/
+.llm-council/
+*.log
+.DS_Store
