@@ -268,18 +268,46 @@ function councillorCardHtml(c, council) {
 
 function stage2Html(turn) {
   const council = state.config?.council || [];
-  const rankerNodes = turn.rankings.length ? turn.rankings.map((r) => `
-    <div class="councillor">
-      <div class="councillor-head">
-        <div class="name-block">
-          <div class="councillor-name">${escapeHtml(council.find((c)=>c.id===r.ranker)?.display || r.ranker)}'s ballot</div>
-          <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
+  // Build a councillor-keyed view: render a ranker card for every councillor,
+  // showing real ballots where present and skeletons for the rest. Mirrors
+  // stage1's approach so the layout never collapses when the stage tab is
+  // clicked before all rankings arrive.
+  const byRanker = new Map(turn.rankings.map((r) => [r.ranker, r]));
+  const rows = council.length
+    ? council.map((c) => byRanker.get(c.id) || { ranker: c.id, _pending: true })
+    : turn.rankings;
+
+  const rankerNodes = rows.map((r) => {
+    const meta = council.find((c) => c.id === r.ranker) || { vendor: 'Other', display: r.ranker };
+    const initial = (meta.display || r.ranker).slice(0, 1).toUpperCase();
+    if (r._pending) {
+      return `
+        <div class="councillor">
+          <div class="councillor-head">
+            <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+            <div class="name-block">
+              <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
+              <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
+            </div>
+          </div>
+          <div class="thinking-label"><span class="pulse"></span>RANKING</div>
+          <div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>
+        </div>`;
+    }
+    return `
+      <div class="councillor">
+        <div class="councillor-head">
+          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
+          <div class="name-block">
+            <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
+            <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
+          </div>
+          <span class="check">✓</span>
         </div>
-      </div>
-      <div class="response expanded">${safeMd(r.raw || '')}</div>
-      <div class="muted" style="margin-top:8px">Parsed: ${r.parsed.length ? r.parsed.map(escapeHtml).join(' › ') : '(unparseable)'}</div>
-    </div>
-  `).join('') : '<div class="muted">Rankings still coming in…</div>';
+        <div class="response expanded">${safeMd(r.raw || '')}</div>
+        <div class="muted" style="margin-top:8px">Parsed: ${r.parsed && r.parsed.length ? r.parsed.map(escapeHtml).join(' › ') : '(unparseable)'}</div>
+      </div>`;
+  }).join('');
 
   const agg = turn.aggregate?.length ? `
     <div class="aggregate"><table>
@@ -291,7 +319,23 @@ function stage2Html(turn) {
 }
 
 function stage3Html(turn) {
-  if (!turn.synthesis) return '<div class="muted">Chairman is synthesising…</div>';
+  if (!turn.synthesis) {
+    // Skeleton: matches the shape of the eventual synthesis card so the
+    // layout doesn't jump when the chairman's response lands.
+    return `
+      <div class="synthesis synthesis-pending">
+        <div class="synthesis-label"><span>Chairman</span> <span class="muted">· ${escapeHtml(state.config?.chairman || '…')}</span></div>
+        <div class="thinking-label"><span class="pulse"></span>SYNTHESISING</div>
+        <div class="synthesis-skeleton">
+          <div class="skeleton-line" style="width:96%"></div>
+          <div class="skeleton-line" style="width:88%"></div>
+          <div class="skeleton-line" style="width:92%"></div>
+          <div class="skeleton-line" style="width:76%"></div>
+          <div class="skeleton-line" style="width:84%"></div>
+          <div class="skeleton-line" style="width:60%"></div>
+        </div>
+      </div>`;
+  }
   if (turn.synthesis.error) return `<div class="synthesis" style="border-color:var(--bad)"><div class="synthesis-label" style="color:var(--bad)">Chairman failed</div><div class="synthesis-body">${escapeHtml(turn.synthesis.error)}</div></div>`;
   return `<div class="synthesis">
     <div class="synthesis-label">Chairman · ${escapeHtml(turn.synthesis.model)}</div>
