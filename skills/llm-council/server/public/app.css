@@ -61,8 +61,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .session-meta{display:flex;gap:12px;margin-top:14px;font-size:12px;color:var(--ink-mute);font-variant-numeric:tabular-nums}
 
 .stage-rail{display:flex;margin:32px 0;border-radius:var(--r-md);background:var(--surface);border:1px solid var(--hairline);box-shadow:var(--shadow-sm);overflow:hidden}
-.stage{flex:1;padding:14px 18px;cursor:pointer;border-right:1px solid var(--hairline);position:relative}
+.stage{flex:1;padding:14px 18px;cursor:pointer;border-right:1px solid var(--hairline);position:relative;transition:background .15s ease}
 .stage:last-child{border-right:none}
+.stage:hover:not(.active){background:var(--bg)}
 .stage.active{background:var(--accent-soft)}
 .stage.active::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--accent)}
 .stage-meta{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-mute);font-weight:500}
@@ -81,8 +82,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .turn-header{margin:8px 0 16px}
 .turn-question{font-size:22px;font-weight:500;letter-spacing:-.02em;line-height:1.3;margin-top:4px}
 .councillors{display:flex;flex-direction:column;gap:1px;background:var(--hairline);border-radius:var(--r-lg);border:1px solid var(--hairline);overflow:hidden;box-shadow:var(--shadow-sm)}
-.councillor{background:var(--surface);padding:22px 24px;cursor:pointer}
+.councillor{background:var(--surface);padding:22px 24px;cursor:pointer;transition:background .15s ease;position:relative}
 .councillor:hover{background:var(--surface-elev)}
+/* Subtle fade-in for a councillor card the moment its status flips from
+   "thinking" to "ok" — the card was a skeleton on the previous render so
+   this softens the transition into a real response. */
+.councillor:has(.response){animation:cardArrive .35s ease-out}
+@keyframes cardArrive{from{opacity:.55;transform:translateY(2px)}to{opacity:1;transform:none}}
 .councillor-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .avatar{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
 .avatar[data-vendor="Anthropic"]{background:linear-gradient(135deg,#c96442,#b8533a)}
@@ -100,9 +106,32 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .councillor-name{font-size:14px;font-weight:600;letter-spacing:-.015em}
 .vendor-tag{font-family:var(--mono);font-size:10px;color:var(--ink-mute);margin-top:2px}
 .latency{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums}
-.response{font-size:14px;line-height:1.65;color:var(--ink-soft);max-height:4.95em;overflow:hidden;mask-image:linear-gradient(to bottom,black 60%,transparent)}
+.response{font-size:14px;line-height:1.65;color:var(--ink-soft);max-height:8.25em;overflow:hidden;mask-image:linear-gradient(to bottom,black 60%,transparent);transition:max-height .25s ease}
 .response.expanded{max-height:none;mask-image:none}
-.expand-row{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--accent);font-size:12px;font-weight:500;cursor:pointer}
+/* Markdown content inside responses — without these, marked output looks flat. */
+.response p{margin:0 0 .75em}
+.response p:last-child{margin-bottom:0}
+.response h1,.response h2,.response h3,.response h4{font-weight:600;letter-spacing:-.015em;line-height:1.3;color:var(--ink);margin:1em 0 .5em}
+.response h1{font-size:17px}
+.response h2{font-size:15.5px}
+.response h3{font-size:14.5px}
+.response h4{font-size:14px}
+.response ul,.response ol{margin:.5em 0 .75em 1.25em;padding-left:.5em}
+.response li{margin-bottom:.25em}
+.response li::marker{color:var(--ink-faint)}
+.response code{font-family:var(--mono);font-size:12.5px;background:var(--bg);padding:1px 5px;border-radius:4px;border:1px solid var(--hairline)}
+.response pre{background:var(--bg);border:1px solid var(--hairline);border-radius:8px;padding:12px 14px;overflow-x:auto;margin:.5em 0 .75em;font-size:12.5px;line-height:1.55}
+.response pre code{background:transparent;border:none;padding:0;font-size:inherit}
+.response blockquote{border-left:3px solid var(--accent-line);padding-left:12px;margin:.5em 0;color:var(--ink-mute);font-style:italic}
+.response a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line)}
+.response a:hover{border-bottom-color:var(--accent)}
+.response strong{font-weight:600;color:var(--ink)}
+.response hr{border:none;border-top:1px solid var(--hairline);margin:1em 0}
+.response table{border-collapse:collapse;font-size:13px;margin:.5em 0}
+.response th,.response td{padding:6px 10px;border-bottom:1px solid var(--hairline);text-align:left}
+.response th{font-weight:500;color:var(--ink-mute);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.expand-row{display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:4px 8px;margin-left:-8px;border-radius:6px;color:var(--accent);font-size:12px;font-weight:500;cursor:pointer;transition:background .15s ease}
+.expand-row:hover{background:var(--accent-soft)}
 
 .skeleton-line{height:12px;border-radius:4px;background:linear-gradient(90deg,var(--hairline) 0%,var(--hairline-strong) 50%,var(--hairline) 100%);background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite;margin-bottom:8px}
 .skeleton-line:nth-child(1){width:92%}
@@ -117,11 +146,25 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .aggregate th{background:var(--bg);font-weight:500;color:var(--ink-mute);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
 .aggregate td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-.synthesis{background:var(--surface);border:1px solid var(--accent-line);border-radius:var(--r-lg);padding:28px;box-shadow:var(--shadow-md)}
-.synthesis-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
-.synthesis-body{font-size:15px;line-height:1.7;color:var(--ink)}
+.synthesis{background:linear-gradient(180deg,var(--surface) 0%,var(--accent-soft) 100%);border:1px solid var(--accent-line);border-radius:var(--r-lg);padding:32px;box-shadow:var(--shadow-md);position:relative;overflow:hidden}
+.synthesis::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.synthesis-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.synthesis-label::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.synthesis-body{font-size:15.5px;line-height:1.7;color:var(--ink)}
 .synthesis-body p{margin-bottom:1em}
-.synthesis-body code{font-family:var(--mono);font-size:13px;background:var(--bg);padding:1px 5px;border-radius:3px}
+.synthesis-body p:last-child{margin-bottom:0}
+.synthesis-body h1,.synthesis-body h2,.synthesis-body h3{font-weight:600;letter-spacing:-.02em;margin:1em 0 .4em;color:var(--ink)}
+.synthesis-body h1{font-size:19px}
+.synthesis-body h2{font-size:17px}
+.synthesis-body h3{font-size:16px}
+.synthesis-body ul,.synthesis-body ol{margin:.6em 0 1em 1.5em}
+.synthesis-body li{margin-bottom:.3em}
+.synthesis-body code{font-family:var(--mono);font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px;border:1px solid var(--hairline)}
+.synthesis-body pre{background:var(--bg);border:1px solid var(--hairline);border-radius:8px;padding:14px;overflow-x:auto;margin:.6em 0;font-size:13px}
+.synthesis-body pre code{background:transparent;border:none;padding:0}
+.synthesis-body blockquote{border-left:3px solid var(--accent);padding-left:14px;margin:.6em 0;color:var(--ink-soft);font-style:italic}
+.synthesis-body strong{font-weight:600}
+.synthesis-body a{color:var(--accent);border-bottom:1px solid var(--accent-line);text-decoration:none}
 
 .composer{margin-top:32px;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm)}
 .composer:focus-within{border-color:var(--accent-line);box-shadow:0 0 0 4px var(--accent-soft)}

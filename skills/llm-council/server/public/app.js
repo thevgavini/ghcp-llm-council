@@ -200,7 +200,18 @@ function stageContentHtml(turn) {
 
 function stage1Html(turn) {
   const knownCouncil = state.config?.council || [];
-  const rows = (turn.councillors.length ? turn.councillors : knownCouncil.map((c) => ({ id: c.id, status: 'thinking' })));
+  // FIX (issue 1): always render the full council list. For councillors that
+  // haven't reported yet, render a skeleton placeholder so the UI stays
+  // visually anchored as responses stream in one at a time.
+  const byId = new Map(turn.councillors.map((c) => [c.id, c]));
+  const rows = knownCouncil.length
+    ? knownCouncil.map((cfg) => byId.get(cfg.id) || { id: cfg.id, status: 'thinking' })
+    : turn.councillors;
+  // Append any councillors that responded but aren't in the configured list
+  // (shouldn't happen in practice but keeps the UI honest).
+  for (const c of turn.councillors) {
+    if (!knownCouncil.find((cfg) => cfg.id === c.id)) rows.push(c);
+  }
   return `<div class="councillors">${rows.map((c) => councillorCardHtml(c, knownCouncil)).join('')}</div>`;
 }
 
@@ -220,7 +231,7 @@ function councillorCardHtml(c, council) {
           <span class="check">✓</span>
         </div>
         <div class="response">${safeMd(c.response || '')}</div>
-        <div class="expand-row">Read full response →</div>
+        <div class="expand-row" data-expand>Read full response →</div>
       </div>`;
   }
   if (c.status === 'timeout' || c.status === 'error' || c.status === 'empty' || c.status === 'unsupported_model') {
@@ -288,7 +299,13 @@ function bindCardClicks() {
   $$('#stage-content .councillor').forEach((el) => {
     el.addEventListener('click', (ev) => {
       if (ev.target.closest('button')) return;
-      el.querySelector('.response')?.classList.toggle('expanded');
+      const resp = el.querySelector('.response');
+      if (!resp) return;
+      const nowExpanded = resp.classList.toggle('expanded');
+      // FIX (issue 2): toggle the affordance text so the user knows the
+      // click did something and how to reverse it.
+      const tag = el.querySelector('[data-expand]');
+      if (tag) tag.textContent = nowExpanded ? 'Show less ↑' : 'Read full response →';
     });
   });
   $$('#stage-content [data-action="retry-councillor"]').forEach((b) => {
