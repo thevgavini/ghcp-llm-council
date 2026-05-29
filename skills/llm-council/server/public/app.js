@@ -66,7 +66,9 @@ async function init() {
   // Cross-origin pages cannot read this response, which is what defeats CSRF.
   const health = await api('GET', '/api/health');
   state.csrfToken = health && health.csrf_token;
-  state.models = await api('GET', '/api/models');
+  // Tolerate older servers that don't yet expose /api/models — settings will
+  // fall back to preserving custom IDs only, but the rest of the UI still loads.
+  try { state.models = await api('GET', '/api/models'); } catch { state.models = { task: [], 'github-models': [] }; }
   state.config = await api('GET', '/api/config');
   state.conversations = await api('GET', '/api/conversations');
   if (state.conversations.length) {

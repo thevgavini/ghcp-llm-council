@@ -21,6 +21,13 @@
 [hidden]{display:none !important}
 html,body{height:100%}
 body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:-.011em;line-height:1.5}
+/* Refined scrollbar — keep it functional but visually muted. */
+*{scrollbar-width:thin;scrollbar-color:var(--hairline-strong) transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:transparent;border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+*:hover::-webkit-scrollbar-thumb{background:var(--hairline-strong);background-clip:padding-box;border:2px solid transparent}
+*::-webkit-scrollbar-thumb:hover{background:var(--ink-faint);background-clip:padding-box;border:2px solid transparent}
 @supports (font-variation-settings:normal){body{font-family:'Inter var',system-ui,sans-serif}}
 
 #app{display:grid;grid-template-columns:260px 1fr;height:100vh;overflow:hidden}
