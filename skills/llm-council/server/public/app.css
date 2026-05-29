@@ -225,6 +225,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .about-list{margin:8px 0 0 1.25em;padding-left:.25em}
 .about-list li{margin-bottom:8px}
 .about-list li::marker{color:var(--ink-faint)}
+/* Mode list inside the About drawer — pills sit inline with the description,
+   with a touch of breathing room so each line scans cleanly. */
+.about-modes{list-style:none;margin-left:0;padding-left:0}
+.about-modes li{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;line-height:1.55}
+.about-modes li .mode-pill{flex-shrink:0;margin-top:2px;min-width:72px;justify-content:center}
 .about-meta{display:flex;justify-content:space-between;align-items:center}
 .about-meta a{color:var(--ink-mute)!important;border-bottom:none!important;font-size:12px}
 .about-meta a:hover{color:var(--accent)!important}

@@ -162,6 +162,19 @@
         </section>
 
         <section class="about-section">
+          <h3>Modes</h3>
+          <p>Every question runs in one of five modes. The mode picks the prompt set the councillors and chairman work from, and may swap in a different lineup of models tuned for that question shape.</p>
+          <ul class="about-list about-modes">
+            <li><span class="mode-pill mode-general">general</span> Open-ended Q&amp;A. The default. Five-vendor council, free-form synthesis. Use when no other mode fits.</li>
+            <li><span class="mode-pill mode-review">review</span> Code or change review. Critic-heavy four-model lineup. Councillors produce severity-tagged findings; chairman opens with a verdict (APPROVE / REQUEST CHANGES / BLOCK) and merges duplicate flags. Pair with <code>--files</code> to feed source directly.</li>
+            <li><span class="mode-pill mode-design">design</span> Architecture or technology choice. Each councillor enumerates 2–3 credible options, names trade-offs, and recommends one. Chairman writes a decision document with explicit "what would change my mind".</li>
+            <li><span class="mode-pill mode-plan">plan</span> Implementation roadmap. Councillors produce ordered steps with rationale, risks, and a definition of done. Chairman picks the strongest ordering and merges the risk list.</li>
+            <li><span class="mode-pill mode-research">research</span> Learn about a topic. Councillors lead with a one-paragraph summary, then unpack mechanisms and numbers. Chairman synthesises an explainer with explicit confidence levels and caveats — no recommendation.</li>
+          </ul>
+          <p class="muted" style="margin-top:8px">A pill appears next to non-general conversations in the sidebar and at the top of the canvas. The chairman and council composition can be customised per mode via <code>mode_packs</code> in <code>defaults/council.json</code>.</p>
+        </section>
+
+        <section class="about-section">
           <h3>Credits</h3>
           <p>Built by <strong>Vivekananda Gavini</strong> as a GitHub Copilot CLI skill — no OpenRouter account, no Python, no API keys, no separate server to manage. Just a skill that pops up a browser pane and runs the council using inference your Copilot CLI already has.</p>
           <p>Conceptually inspired by <a href="https://github.com/karpathy/llm-council" target="_blank" rel="noopener noreferrer">Andrej Karpathy's <code>llm-council</code></a>, which introduced the three-stage deliberation pattern. This implementation reuses the prompt structure but replaces the OpenRouter + FastAPI + React stack with a single self-contained Node skill that ships inside Copilot CLI.</p>
