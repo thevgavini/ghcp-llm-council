@@ -1,12 +1,13 @@
 // Module-level state, render-on-event.
 const state = {
   config: null,
-  conversations: [],
-  currentId: null,
-  conversation: null,
-  activeStages: {},  // turn_id -> stage number selected by user; absent = follow turn.stage
-  csrfToken: null,   // fetched from /api/health on init; required for mutating requests
-  models: null       // { task: [...], 'github-models': [...] } populated from /api/models
+  conversations: [],   // each item has { id, title, turns:[{id,question,created_at}] }
+  currentTurnId: null, // the single turn currently shown in the canvas
+  currentCid: null,    // the conversation that contains currentTurnId
+  conversation: null,  // full data for currentCid
+  activeStages: {},    // turn_id -> stage number selected by user
+  csrfToken: null,
+  models: null
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -36,22 +37,27 @@ function connectWs() {
   ws.addEventListener('message', async (ev) => {
     let msg; try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === 'turn-update') {
-      if (state.currentId == null) {
-        // Auto-select the conversation that just got an update
-        state.currentId = msg.conversation_id;
-      }
-      if (state.currentId === msg.conversation_id) {
-        state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
-        state.conversations = await api('GET', '/api/conversations');
-        render();
-      }
-    } else if (msg.type === 'conversation-created') {
+      // Refresh the conversation list so the sidebar picks up any new turns,
+      // and refresh the currently-shown conversation if it's the affected one.
       state.conversations = await api('GET', '/api/conversations');
-      if (state.currentId == null) {
-        await selectConversation(msg.conversation_id);
+      if (state.currentTurnId == null) {
+        // Auto-select the latest turn in the conversation that just updated.
+        const conv = state.conversations.find((c) => c.id === msg.conversation_id);
+        const latestTurn = conv && conv.turns && conv.turns.at(-1);
+        if (latestTurn) {
+          await selectTurn(msg.conversation_id, latestTurn.id);
+          return;
+        }
+      }
+      if (state.currentCid === msg.conversation_id) {
+        state.conversation = await api('GET', `/api/conversations/${msg.conversation_id}`);
+        render();
       } else {
         renderSidebar();
       }
+    } else if (msg.type === 'conversation-created') {
+      state.conversations = await api('GET', '/api/conversations');
+      renderSidebar();
     } else if (msg.type === 'config-changed') {
       state.config = await api('GET', '/api/config');
       renderSettings();
@@ -62,26 +68,35 @@ function connectWs() {
 
 // ---- Init ------------------------------------------------------------------
 async function init() {
-  // /api/health is the same-origin endpoint that returns the CSRF token.
-  // Cross-origin pages cannot read this response, which is what defeats CSRF.
   const health = await api('GET', '/api/health');
   state.csrfToken = health && health.csrf_token;
-  // Tolerate older servers that don't yet expose /api/models — settings will
-  // fall back to preserving custom IDs only, but the rest of the UI still loads.
   try { state.models = await api('GET', '/api/models'); } catch { state.models = { task: [], 'github-models': [] }; }
   state.config = await api('GET', '/api/config');
   state.conversations = await api('GET', '/api/conversations');
-  if (state.conversations.length) {
-    await selectConversation(state.conversations[0].id);
-  }
+  // Auto-select the newest turn across all conversations on first load.
+  const newest = newestTurn(state.conversations);
+  if (newest) await selectTurn(newest.cid, newest.tid);
   render();
   connectWs();
   bindEvents();
 }
 
-async function selectConversation(cid) {
-  state.currentId = cid;
-  state.activeStages = {};  // reset per-turn tab selections on conversation switch
+function newestTurn(conversations) {
+  let best = null;
+  for (const c of conversations) {
+    for (const t of (c.turns || [])) {
+      if (!best || (t.created_at && t.created_at > best.created_at)) {
+        best = { cid: c.id, tid: t.id, created_at: t.created_at };
+      }
+    }
+  }
+  return best;
+}
+
+async function selectTurn(cid, tid) {
+  state.currentCid = cid;
+  state.currentTurnId = tid;
+  state.activeStages = {};
   state.conversation = await api('GET', `/api/conversations/${cid}`);
   render();
 }
@@ -89,7 +104,13 @@ async function selectConversation(cid) {
 // ---- Render ----------------------------------------------------------------
 function render() {
   renderSidebar();
-  if (!state.conversation) {
+  if (!state.conversation || !state.currentTurnId) {
+    $('#empty').hidden = false;
+    $('#conversation').hidden = true;
+    return;
+  }
+  const turn = state.conversation.turns.find((t) => t.id === state.currentTurnId);
+  if (!turn) {
     $('#empty').hidden = false;
     $('#conversation').hidden = true;
     return;
@@ -97,62 +118,39 @@ function render() {
   $('#empty').hidden = true;
   $('#conversation').hidden = false;
 
-  const conv = state.conversation;
-  // Newest turn first — matches the sidebar's newest-conversation-first
-  // order, so "latest activity" is always at the top of every view.
-  const turns = conv.turns.slice().reverse();
-  const latest = turns[0];
+  $('#conv-question').textContent = turn.question || '';
+  $('#conv-meta').innerHTML = metaHtml(turn);
 
-  // Top header shows the *first* question (the conversation's reason for being)
-  // and overall meta. Each turn underneath has its own question + stage rail.
-  $('#conv-question').textContent = conv.turns[0]?.question ?? '';
-  $('#conv-meta').innerHTML = metaHtml(latest);
+  // Each sidebar entry shows ONE question. Render only that turn's stages —
+  // never stack multiple turns in the canvas.
+  $('#stage-rail').innerHTML = stageRailHtml(turn);
+  $('#stage-content').innerHTML = stageContentHtml(turn);
 
-  // Render the stack of turns. Each turn block shows its own question and
-  // stage rail. With newest at the top, the first card has no "Follow-up #N"
-  // header because it's the latest; older turns get the eyebrow label.
-  $('#stage-rail').innerHTML = '';
-  $('#stage-content').innerHTML = turns.map((t, idx) => turnBlockHtml(t, idx, turns.length, conv.turns)).join('');
-
-  turns.forEach((t) => {
-    bindStageClicks(t);
-  });
+  bindStageClicks(turn, $('#stage-rail'), $('#stage-content'));
   bindCardClicks();
-
-  // Don't auto-scroll on every render — only when explicitly switching to
-  // a new conversation. The newest-first layout means the latest is always
-  // already at the top anyway.
-}
-
-function turnBlockHtml(turn, idx, total, originalTurns) {
-  // originalTurns is the chronological array; we need it to compute the
-  // follow-up number based on chronological position, not display position.
-  const chronoIdx = originalTurns.indexOf(turn);
-  const isOriginal = chronoIdx === 0;
-  const heading = isOriginal
-    ? (total > 1 ? `<div class="turn-header"><div class="eyebrow">Original question</div><h2 class="turn-question">${escapeHtml(turn.question)}</h2></div>` : '')
-    : `<div class="turn-header">
-         <div class="eyebrow">Follow-up #${chronoIdx}${idx === 0 ? ' · latest' : ''}</div>
-         <h2 class="turn-question">${escapeHtml(turn.question)}</h2>
-       </div>`;
-  return `
-    <section class="turn-block" id="turn-${turn.id}">
-      ${heading}
-      <div class="stage-rail" data-turn="${turn.id}" data-rail>${stageRailHtml(turn)}</div>
-      <div class="stage-content" data-turn="${turn.id}" data-content>${stageContentHtml(turn)}</div>
-    </section>
-  `;
 }
 
 function renderSidebar() {
-  const html = state.conversations.map((c) => `
-    <button class="item ${c.id === state.currentId ? 'active' : ''}" data-id="${c.id}" title="${escapeHtml(c.title)}">
-      <span class="title">${escapeHtml(c.title)}</span>
-      <span class="date">${new Date(c.created_at).toLocaleString()}</span>
+  // Flatten every turn from every conversation into its own sidebar entry.
+  // Each question gets its own tab, no entry shows more than one answer.
+  const entries = [];
+  for (const c of state.conversations) {
+    for (const t of (c.turns || [])) {
+      entries.push({ cid: c.id, tid: t.id, question: t.question || c.title, created_at: t.created_at || c.created_at });
+    }
+  }
+  entries.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
+
+  const html = entries.map((e) => `
+    <button class="item ${e.tid === state.currentTurnId ? 'active' : ''}" data-cid="${e.cid}" data-tid="${e.tid}" title="${escapeHtml(e.question)}">
+      <span class="title">${escapeHtml(e.question)}</span>
+      <span class="date">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
     </button>
   `).join('');
-  $('#history').innerHTML = html || '<div class="muted" style="padding:8px">No conversations yet.</div>';
-  $$('#history .item').forEach((el) => el.addEventListener('click', () => selectConversation(el.dataset.id)));
+  $('#history').innerHTML = html || '<div class="muted" style="padding:8px">No questions yet.</div>';
+  $$('#history .item').forEach((el) =>
+    el.addEventListener('click', () => selectTurn(el.dataset.cid, el.dataset.tid))
+  );
 }
 
 function metaHtml(turn) {
@@ -186,16 +184,19 @@ function effectiveStage(turn) {
   return 1;
 }
 
-function bindStageClicks(turn) {
-  const railEl = document.querySelector(`[data-rail][data-turn="${turn.id}"]`);
-  const contentEl = document.querySelector(`[data-content][data-turn="${turn.id}"]`);
+function bindStageClicks(turn, railEl, contentEl) {
+  // For the single-turn view we get rail/content elements directly. For the
+  // old multi-turn code path they'd be looked up by data attribute — keep
+  // that fallback so external callers still work.
+  railEl = railEl || document.querySelector(`[data-rail][data-turn="${turn.id}"]`);
+  contentEl = contentEl || document.querySelector(`[data-content][data-turn="${turn.id}"]`);
   if (!railEl) return;
   railEl.querySelectorAll('.stage').forEach((el) => {
     el.addEventListener('click', () => {
       state.activeStages[turn.id] = Number(el.dataset.stage);
       railEl.innerHTML = stageRailHtml(turn);
       contentEl.innerHTML = stageContentHtml(turn);
-      bindStageClicks(turn);
+      bindStageClicks(turn, railEl, contentEl);
       bindCardClicks();
     });
   });
@@ -227,12 +228,10 @@ function stage1Html(turn) {
 
 function councillorCardHtml(c, council) {
   const meta = council.find((x) => x.id === c.id) || { vendor: 'Other', display: c.id };
-  const initial = vendorInitial(meta);
   if (c.status === 'ok') {
     return `
       <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
@@ -248,7 +247,6 @@ function councillorCardHtml(c, council) {
     return `
       <div class="councillor" data-id="${escapeHtml(c.id)}">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)} — ${escapeHtml(c.status)}</div>
@@ -261,7 +259,6 @@ function councillorCardHtml(c, council) {
   return `
     <div class="councillor" data-id="${escapeHtml(c.id)}">
       <div class="councillor-head">
-        <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
         <div class="name-block">
           <div class="councillor-name">${escapeHtml(meta.display || c.id)}</div>
           <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(c.id)}</div>
@@ -283,10 +280,6 @@ function stage2Html(turn) {
     const meta = council.find((c) => c.id === cid) || { vendor: 'Other', display: cid };
     return { id: cid, label, meta };
   };
-  const avatarDot = (meta) => {
-    return `<span class="avatar avatar-sm" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(vendorInitial(meta))}</span>`;
-  };
-
   // Build a councillor-keyed view so the cards stay in council order with
   // skeletons for ballots still in flight.
   const byRanker = new Map(turn.rankings.map((r) => [r.ranker, r]));
@@ -296,12 +289,10 @@ function stage2Html(turn) {
 
   const rankerNodes = rows.map((r) => {
     const meta = council.find((c) => c.id === r.ranker) || { vendor: 'Other', display: r.ranker };
-    const initial = vendorInitial(meta);
     if (r._pending) {
       return `
         <div class="councillor">
           <div class="councillor-head">
-            <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
             <div class="name-block">
               <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
               <div class="vendor-tag">${escapeHtml(r.ranker)}</div>
@@ -314,13 +305,12 @@ function stage2Html(turn) {
     const parsedChips = (r.parsed && r.parsed.length)
       ? r.parsed.map((label, i) => {
           const { meta: rm } = resolve(label);
-          return `<span class="ballot-chip"><span class="ballot-chip-rank">${i+1}</span>${avatarDot(rm)}<span class="ballot-chip-name">${escapeHtml(rm.display)}</span></span>`;
+          return `<span class="ballot-chip"><span class="ballot-chip-rank">${i+1}</span><span class="ballot-chip-name">${escapeHtml(rm.display)}</span></span>`;
         }).join('<span class="ballot-arrow">›</span>')
       : `<span class="muted">No parseable ranking in this ballot.</span>`;
     return `
       <div class="councillor">
         <div class="councillor-head">
-          <div class="avatar" data-vendor="${escapeHtml(meta.vendor)}">${escapeHtml(initial)}</div>
           <div class="name-block">
             <div class="councillor-name">${escapeHtml(meta.display || r.ranker)}'s ballot</div>
             <div class="vendor-tag">${escapeHtml(meta.vendor.toLowerCase())} · ${escapeHtml(r.ranker)}</div>
@@ -333,7 +323,7 @@ function stage2Html(turn) {
       </div>`;
   }).join('');
 
-  // Aggregate table: also de-anonymise with avatars.
+  // Aggregate table — model column shows just the name, no avatar.
   const agg = turn.aggregate?.length ? `
     <div class="aggregate"><table>
       <thead><tr><th>Rank</th><th>Model</th><th>Avg position</th><th>Votes</th></tr></thead>
@@ -341,7 +331,7 @@ function stage2Html(turn) {
         const meta = council.find((c) => c.id === a.model) || { vendor: 'Other', display: a.model };
         return `<tr>
           <td class="num">${i+1}</td>
-          <td><span class="agg-model">${avatarDot(meta)}<span>${escapeHtml(meta.display || a.model)}</span></span></td>
+          <td>${escapeHtml(meta.display || a.model)}</td>
           <td class="num">${a.avg.toFixed(2)}</td>
           <td class="num">${a.votes}</td>
         </tr>`;
@@ -392,11 +382,10 @@ function bindCardClicks() {
   $$('#stage-content [data-action="retry-councillor"]').forEach((b) => {
     b.addEventListener('click', async (ev) => {
       ev.stopPropagation();
-      const turnId = b.closest('[data-content]')?.dataset.turn
-                  ?? state.conversation.turns.at(-1).id;
+      const turnId = state.currentTurnId;
       await api('POST', '/api/events', {
         type: 'retry-councillor',
-        conversation_id: state.currentId,
+        conversation_id: state.currentCid,
         turn_id: turnId,
         councillor_id: b.dataset.id
       });
@@ -487,7 +476,8 @@ function modelOptionsHtml(backend, selectedId) {
 
 function bindEvents() {
   $('#new-conversation').addEventListener('click', () => {
-    state.currentId = null;
+    state.currentCid = null;
+    state.currentTurnId = null;
     state.conversation = null;
     render();
   });
@@ -579,15 +569,6 @@ function bindEvents() {
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-
-// Returns a short, safe initial for the vendor avatar. Two letters when the
-// display name is one word, otherwise the first letters of the first two words.
-function vendorInitial(meta) {
-  const display = meta.display || meta.id || meta.vendor || '?';
-  const parts = display.trim().split(/[\s\-_/]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return display.slice(0, 2).toUpperCase();
 }
 
 // Sanitised markdown rendering. Always use this for untrusted strings

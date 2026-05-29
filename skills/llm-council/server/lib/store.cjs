@@ -17,8 +17,9 @@ function createStore({ dir }) {
   function appendTurn(cid, { question }) {
     const conv = ensure(cid);
     const id = newId('turn');
-    conv.turns.push({ id, question, stage: 0, councillors: [], rankings: [], label_map: {}, aggregate: [], synthesis: null, drills: [] });
-    conv.updated_at = isoNow();
+    const now = isoNow();
+    conv.turns.push({ id, question, created_at: now, stage: 0, councillors: [], rankings: [], label_map: {}, aggregate: [], synthesis: null, drills: [] });
+    conv.updated_at = now;
     return { id };
   }
 
@@ -55,21 +56,39 @@ function createStore({ dir }) {
 
   function listConversations() {
     const seen = new Map();
+    const pickTurns = (turns) =>
+      (turns || []).map((t) => ({
+        id: t.id,
+        question: t.question,
+        // Fall back to the parent created_at for turns predating the
+        // turn-level timestamp.
+        created_at: t.created_at,
+        stage: t.stage
+      }));
     for (const conv of mem.values()) {
-      seen.set(conv.id, { id: conv.id, title: conv.title, created_at: conv.created_at, updated_at: conv.updated_at || conv.created_at });
+      seen.set(conv.id, {
+        id: conv.id,
+        title: conv.title,
+        created_at: conv.created_at,
+        updated_at: conv.updated_at || conv.created_at,
+        turns: pickTurns(conv.turns)
+      });
     }
     if (fs.existsSync(dir)) {
       for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
         const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
         if (!seen.has(c.id)) {
-          seen.set(c.id, { id: c.id, title: c.title, created_at: c.created_at, updated_at: c.updated_at || c.created_at });
+          seen.set(c.id, {
+            id: c.id,
+            title: c.title,
+            created_at: c.created_at,
+            updated_at: c.updated_at || c.created_at,
+            turns: pickTurns(c.turns)
+          });
         }
       }
     }
     const items = Array.from(seen.values());
-    // Sort by most-recent activity. updated_at bumps on every turn + every
-    // stage advance, so active conversations rise to the top — matches the
-    // chronological "latest turn at the bottom" order inside the canvas.
     items.sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1));
     return items;
   }
