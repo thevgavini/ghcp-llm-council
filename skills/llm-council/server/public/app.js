@@ -414,6 +414,17 @@ function bindEvents() {
     state.conversation = null;
     render();
   });
+  $('#open-about').addEventListener('click', async () => {
+    $('#about-drawer').hidden = false;
+    // Fetch version lazily so the drawer opens instantly even if the server is slow.
+    try {
+      const info = await api('GET', '/api/about');
+      $('#about-version').textContent = info.version || '—';
+    } catch {
+      $('#about-version').textContent = '—';
+    }
+  });
+  $('#close-about').addEventListener('click', () => { $('#about-drawer').hidden = true; });
   $('#open-settings').addEventListener('click', () => { $('#settings-drawer').hidden = false; renderSettings(); });
   $('#close-settings').addEventListener('click', () => { $('#settings-drawer').hidden = true; });
   $('#settings-form').addEventListener('submit', async (e) => {

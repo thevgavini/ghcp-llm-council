@@ -22,12 +22,38 @@
   <div id="app">
     <aside id="sidebar">
       <header class="brand">
-        <div class="brand-mark"></div>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="gMark" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#5b4cff"/>
+                <stop offset="1" stop-color="#8c7dff"/>
+              </linearGradient>
+            </defs>
+            <circle cx="16" cy="16" r="14" fill="url(#gMark)"/>
+            <!-- Five councillors arranged around the chairman, with thin connecting threads -->
+            <g stroke="rgba(255,255,255,.35)" stroke-width="1" fill="none">
+              <line x1="16" y1="16" x2="16"   y2="7"/>
+              <line x1="16" y1="16" x2="24.6" y2="13.2"/>
+              <line x1="16" y1="16" x2="21.3" y2="23.8"/>
+              <line x1="16" y1="16" x2="10.7" y2="23.8"/>
+              <line x1="16" y1="16" x2="7.4"  y2="13.2"/>
+            </g>
+            <circle cx="16"   cy="7"    r="2.1" fill="#fff"/>
+            <circle cx="24.6" cy="13.2" r="2.1" fill="#fff"/>
+            <circle cx="21.3" cy="23.8" r="2.1" fill="#fff"/>
+            <circle cx="10.7" cy="23.8" r="2.1" fill="#fff"/>
+            <circle cx="7.4"  cy="13.2" r="2.1" fill="#fff"/>
+            <!-- Chairman dot in the centre -->
+            <circle cx="16" cy="16" r="3" fill="#fff"/>
+          </svg>
+        </span>
         <div class="brand-name">Council<span>panel of LLMs</span></div>
       </header>
       <button id="new-conversation" class="btn" title="To start a new conversation, ask in your CLI">+ New conversation</button>
       <nav id="history" class="history"></nav>
       <footer class="sidebar-footer">
+        <button id="open-about" class="btn ghost">ⓘ About</button>
         <button id="open-settings" class="btn ghost">⚙ Settings</button>
       </footer>
     </aside>
@@ -35,7 +61,30 @@
     <main id="main">
       <section id="empty" class="empty">
         <div class="empty-inner">
-          <div class="empty-mark"></div>
+          <span class="empty-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="gMarkLarge" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#5b4cff"/>
+                  <stop offset="1" stop-color="#8c7dff"/>
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="32" r="29" fill="url(#gMarkLarge)"/>
+              <g stroke="rgba(255,255,255,.32)" stroke-width="1.2" fill="none">
+                <line x1="32" y1="32" x2="32"   y2="14"/>
+                <line x1="32" y1="32" x2="49.1" y2="26.4"/>
+                <line x1="32" y1="32" x2="42.6" y2="47.6"/>
+                <line x1="32" y1="32" x2="21.4" y2="47.6"/>
+                <line x1="32" y1="32" x2="14.9" y2="26.4"/>
+              </g>
+              <circle cx="32"   cy="14"   r="4.2" fill="#fff"/>
+              <circle cx="49.1" cy="26.4" r="4.2" fill="#fff"/>
+              <circle cx="42.6" cy="47.6" r="4.2" fill="#fff"/>
+              <circle cx="21.4" cy="47.6" r="4.2" fill="#fff"/>
+              <circle cx="14.9" cy="26.4" r="4.2" fill="#fff"/>
+              <circle cx="32" cy="32" r="6" fill="#fff"/>
+            </svg>
+          </span>
           <h1 class="empty-title">Ask the council.</h1>
           <p class="empty-sub">A panel of LLMs deliberates on your question — independent first opinions, anonymised peer review, and a chairman's synthesis. Watch it unfold here, live.</p>
           <div class="empty-cta">
@@ -62,6 +111,75 @@
         </div>
       </section>
     </main>
+
+    <aside id="about-drawer" class="drawer" hidden>
+      <header class="drawer-head">
+        <h2>About the Council</h2>
+        <button id="close-about" class="btn ghost">Close</button>
+      </header>
+      <div class="about-body">
+        <section class="about-section">
+          <span class="about-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="gMarkAbout" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#5b4cff"/>
+                  <stop offset="1" stop-color="#8c7dff"/>
+                </linearGradient>
+              </defs>
+              <circle cx="32" cy="32" r="29" fill="url(#gMarkAbout)"/>
+              <g stroke="rgba(255,255,255,.32)" stroke-width="1.2" fill="none">
+                <line x1="32" y1="32" x2="32"   y2="14"/>
+                <line x1="32" y1="32" x2="49.1" y2="26.4"/>
+                <line x1="32" y1="32" x2="42.6" y2="47.6"/>
+                <line x1="32" y1="32" x2="21.4" y2="47.6"/>
+                <line x1="32" y1="32" x2="14.9" y2="26.4"/>
+              </g>
+              <circle cx="32"   cy="14"   r="4.2" fill="#fff"/>
+              <circle cx="49.1" cy="26.4" r="4.2" fill="#fff"/>
+              <circle cx="42.6" cy="47.6" r="4.2" fill="#fff"/>
+              <circle cx="21.4" cy="47.6" r="4.2" fill="#fff"/>
+              <circle cx="14.9" cy="26.4" r="4.2" fill="#fff"/>
+              <circle cx="32" cy="32" r="6" fill="#fff"/>
+            </svg>
+          </span>
+          <p class="about-tagline">Five LLMs in the round. One question. Three rounds of deliberation.</p>
+        </section>
+
+        <section class="about-section">
+          <h3>What this is</h3>
+          <p>The Council is a GitHub Copilot CLI skill that runs every question past a panel of independent LLMs and watches them reason about each other's answers. Instead of trusting a single model, you get a deliberation — first opinions, peer review, and a final synthesis — rendered live in this browser pane while your CLI does the orchestration.</p>
+        </section>
+
+        <section class="about-section">
+          <h3>How a question unfolds</h3>
+          <ol class="about-list">
+            <li><strong>First opinions.</strong> Each councillor answers your question in parallel, without seeing the others.</li>
+            <li><strong>Peer review.</strong> The answers are anonymised and shown back to every councillor; each one ranks them and explains why.</li>
+            <li><strong>Chairman's synthesis.</strong> A single model reads the answers and the rankings, then writes the final response — informed by the council, accountable to one voice.</li>
+          </ol>
+        </section>
+
+        <section class="about-section">
+          <h3>Backends</h3>
+          <p>Two model backends are supported per councillor:</p>
+          <ul class="about-list">
+            <li><strong>Copilot CLI</strong> — Anthropic and OpenAI models routed through the same <code>task</code> tool your agent already uses. No extra API keys.</li>
+            <li><strong>GitHub Models</strong> — Meta Llama, DeepSeek, Mistral, Microsoft Phi, Cohere and others, called over HTTPS using your existing <code>gh auth token</code>.</li>
+          </ul>
+        </section>
+
+        <section class="about-section">
+          <h3>Credits</h3>
+          <p>Inspired by <a href="https://github.com/karpathy/llm-council" target="_blank" rel="noopener noreferrer">Andrej Karpathy's <code>llm-council</code></a>. This reimplementation runs entirely inside a Copilot CLI skill — no API keys, no Python, no separate server to manage.</p>
+        </section>
+
+        <section class="about-section about-meta">
+          <span class="muted">Version <span id="about-version">…</span></span>
+          <a class="muted" href="https://github.com/USER/ghcp-llm-council" target="_blank" rel="noopener noreferrer">Source ↗</a>
+        </section>
+      </div>
+    </aside>
 
     <aside id="settings-drawer" class="drawer" hidden>
       <header class="drawer-head">

@@ -46,6 +46,15 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
         }
       }
       if (req.url === '/api/health') return json(res, 200, { ok: true, csrf_token: csrfToken });
+      if (req.url === '/api/about' && req.method === 'GET') {
+        // Read package.json lazily so a missing/corrupt file doesn't break the server.
+        let version = 'unknown';
+        try {
+          const pkgPath = path.join(__dirname, '..', '..', '..', '..', 'package.json');
+          version = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || 'unknown';
+        } catch {}
+        return json(res, 200, { version });
+      }
       if (req.url === '/api/models' && req.method === 'GET') return json(res, 200, KNOWN_MODELS);
       if (req.url.startsWith('/api/')) return route(req, res);
       await staticServe(req, res);
