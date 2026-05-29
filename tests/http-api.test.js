@@ -50,6 +50,19 @@ test('GET /api/config returns defaults when no runtime config exists', async () 
   assert.ok(Array.isArray(body.council));
 });
 
+test('GET /api/models returns catalog grouped by backend', async () => {
+  const { status, body } = await api('GET', '/api/models');
+  assert.equal(status, 200);
+  assert.ok(Array.isArray(body.task));
+  assert.ok(Array.isArray(body['github-models']));
+  // Sanity: every entry must have id/vendor/display so the frontend dropdown can render it.
+  for (const list of Object.values(body)) {
+    for (const m of list) {
+      assert.ok(m.id && m.vendor && m.display, `bad model entry: ${JSON.stringify(m)}`);
+    }
+  }
+});
+
 test('PUT /api/config validates and persists', async () => {
   const valid = {
     council: [

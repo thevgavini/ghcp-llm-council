@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { createStore } = require('./store.cjs');
 const { loadConfig, validateConfig } = require('./config.cjs');
 const { computeAcceptKey, encodeFrame, OPCODES } = require('./ws.cjs');
+const { KNOWN_MODELS } = require('./models.cjs');
 
 const MIME = { '.html':'text/html', '.css':'text/css', '.js':'application/javascript', '.json':'application/json', '.svg':'image/svg+xml', '.png':'image/png' };
 
@@ -45,6 +46,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
         }
       }
       if (req.url === '/api/health') return json(res, 200, { ok: true, csrf_token: csrfToken });
+      if (req.url === '/api/models' && req.method === 'GET') return json(res, 200, KNOWN_MODELS);
       if (req.url.startsWith('/api/')) return route(req, res);
       await staticServe(req, res);
     } catch (e) {

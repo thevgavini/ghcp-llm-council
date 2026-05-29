@@ -5,7 +5,8 @@ const state = {
   currentId: null,
   conversation: null,
   activeStages: {},  // turn_id -> stage number selected by user; absent = follow turn.stage
-  csrfToken: null    // fetched from /api/health on init; required for mutating requests
+  csrfToken: null,   // fetched from /api/health on init; required for mutating requests
+  models: null       // { task: [...], 'github-models': [...] } populated from /api/models
 };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -65,6 +66,7 @@ async function init() {
   // Cross-origin pages cannot read this response, which is what defeats CSRF.
   const health = await api('GET', '/api/health');
   state.csrfToken = health && health.csrf_token;
+  state.models = await api('GET', '/api/models');
   state.config = await api('GET', '/api/config');
   state.conversations = await api('GET', '/api/conversations');
   if (state.conversations.length) {
@@ -341,14 +343,67 @@ function renderSettings() {
   chair.innerHTML = cfg.council.map((c) => `<option value="${escapeHtml(c.id)}" ${c.id===cfg.chairman?'selected':''}>${escapeHtml(c.display)}</option>`).join('');
   $('#settings-min').value = cfg.min_responses_to_proceed;
   $('#settings-timeout').value = cfg.councillor_timeout_seconds;
-  $('#settings-councillors').innerHTML = cfg.council.map((c, i) => `
-    <div class="councillor-row">
-      <input data-i="${i}" data-k="display" value="${escapeHtml(c.display)}">
-      <input data-i="${i}" data-k="id" value="${escapeHtml(c.id)}">
-      <input data-i="${i}" data-k="vendor" value="${escapeHtml(c.vendor)}">
-      <button type="button" data-remove="${i}">×</button>
-    </div>
-  `).join('') + '<button type="button" id="add-councillor" class="btn ghost">+ Add councillor</button>';
+  $('#settings-councillors').innerHTML = cfg.council.map((c, i) => councillorRowHtml(c, i)).join('') +
+    `<button type="button" id="add-councillor" class="btn ghost" style="margin-top:8px">+ Add councillor</button>`;
+}
+
+function councillorRowHtml(c, i) {
+  const backend = c.backend || 'task';
+  const backendOptions = Object.keys(state.models || {}).map((b) =>
+    `<option value="${escapeHtml(b)}" ${b===backend?'selected':''}>${escapeHtml(backendLabel(b))}</option>`
+  ).join('');
+  const modelOptions = modelOptionsHtml(backend, c.id);
+  return `
+    <div class="councillor-row" data-i="${i}">
+      <div class="row-line">
+        <label class="row-field">
+          <span class="row-label">Backend</span>
+          <select data-k="backend" data-i="${i}">${backendOptions}</select>
+        </label>
+        <label class="row-field flex">
+          <span class="row-label">Model</span>
+          <select data-k="model" data-i="${i}">${modelOptions}</select>
+        </label>
+        <button type="button" class="row-remove" data-remove="${i}" title="Remove">×</button>
+      </div>
+      <label class="row-field">
+        <span class="row-label">Display name</span>
+        <input data-k="display" data-i="${i}" value="${escapeHtml(c.display)}">
+      </label>
+    </div>`;
+}
+
+function backendLabel(b) {
+  if (b === 'task') return 'Copilot CLI (Anthropic / OpenAI)';
+  if (b === 'github-models') return 'GitHub Models (Meta / DeepSeek / Mistral / …)';
+  return b;
+}
+
+function modelOptionsHtml(backend, selectedId) {
+  const models = (state.models && state.models[backend]) || [];
+  // Group by vendor for a nicer dropdown UX.
+  const byVendor = new Map();
+  for (const m of models) {
+    if (!byVendor.has(m.vendor)) byVendor.set(m.vendor, []);
+    byVendor.get(m.vendor).push(m);
+  }
+  let html = '';
+  let foundSelected = false;
+  for (const [vendor, list] of byVendor) {
+    html += `<optgroup label="${escapeHtml(vendor)}">`;
+    for (const m of list) {
+      const sel = m.id === selectedId;
+      if (sel) foundSelected = true;
+      html += `<option value="${escapeHtml(m.id)}" data-vendor="${escapeHtml(m.vendor)}" data-display="${escapeHtml(m.display)}" ${sel?'selected':''}>${escapeHtml(m.display)}</option>`;
+    }
+    html += `</optgroup>`;
+  }
+  // Preserve a custom/unknown id (e.g. a model from an older config) so it
+  // doesn't silently disappear when the user opens settings.
+  if (selectedId && !foundSelected) {
+    html = `<option value="${escapeHtml(selectedId)}" selected>${escapeHtml(selectedId)} (custom)</option>` + html;
+  }
+  return html;
 }
 
 function bindEvents() {
@@ -365,14 +420,54 @@ function bindEvents() {
     cfg.chairman = $('#settings-chairman').value;
     cfg.min_responses_to_proceed = Number($('#settings-min').value);
     cfg.councillor_timeout_seconds = Number($('#settings-timeout').value);
-    $$('#settings-councillors .councillor-row').forEach((row, i) => {
-      $$('input', row).forEach((inp) => { cfg.council[i][inp.dataset.k] = inp.value; });
+    // Reassemble councillors from the new dropdown-driven row UI.
+    $$('#settings-councillors .councillor-row').forEach((row) => {
+      const i = Number(row.dataset.i);
+      const backendSel = $('select[data-k="backend"]', row);
+      const modelSel = $('select[data-k="model"]', row);
+      const displayInp = $('input[data-k="display"]', row);
+      const c = cfg.council[i];
+      c.backend = backendSel.value;
+      c.id = modelSel.value;
+      const chosen = modelSel.selectedOptions[0];
+      if (chosen && chosen.dataset.vendor) c.vendor = chosen.dataset.vendor;
+      c.display = displayInp.value;
     });
     try {
       await api('PUT', '/api/config', cfg);
       $('#settings-status').textContent = 'Saved. Takes effect on next question.';
     } catch (err) {
       $('#settings-status').textContent = err.message;
+    }
+  });
+  $('#settings-councillors').addEventListener('change', (e) => {
+    // When backend changes, re-render the model dropdown for that row with
+    // the new backend's catalog.
+    if (e.target.dataset.k === 'backend') {
+      const i = Number(e.target.dataset.i);
+      const newBackend = e.target.value;
+      const firstModel = (state.models[newBackend] || [])[0];
+      if (firstModel) {
+        state.config.council[i].backend = newBackend;
+        state.config.council[i].id = firstModel.id;
+        state.config.council[i].vendor = firstModel.vendor;
+        state.config.council[i].display = firstModel.display;
+        renderSettings();
+      }
+    } else if (e.target.dataset.k === 'model') {
+      // Auto-fill display name from the chosen model unless the user already
+      // edited it to something distinct.
+      const i = Number(e.target.dataset.i);
+      const chosen = e.target.selectedOptions[0];
+      if (chosen) {
+        state.config.council[i].id = chosen.value;
+        if (chosen.dataset.vendor) state.config.council[i].vendor = chosen.dataset.vendor;
+        if (chosen.dataset.display) {
+          const row = e.target.closest('.councillor-row');
+          const displayInp = $('input[data-k="display"]', row);
+          if (displayInp) displayInp.value = chosen.dataset.display;
+        }
+      }
     }
   });
   $('#settings-councillors').addEventListener('click', (e) => {
@@ -382,7 +477,11 @@ function bindEvents() {
       renderSettings();
     }
     if (e.target.id === 'add-councillor') {
-      state.config.council.push({ id: 'new-model-id', vendor: 'Other', display: 'New Councillor' });
+      // Pre-fill with the first available task-backend model so the new row
+      // is functional out of the box.
+      const seed = (state.models && state.models.task && state.models.task[0])
+                || { id: 'claude-sonnet-4.6', vendor: 'Anthropic', display: 'Claude Sonnet 4.6' };
+      state.config.council.push({ id: seed.id, vendor: seed.vendor, display: seed.display, backend: 'task' });
       renderSettings();
     }
   });
