@@ -171,8 +171,8 @@ function renderSidebar() {
     <button class="item ${e.tid === state.currentTurnId ? 'active' : ''}" data-cid="${e.cid}" data-tid="${e.tid}" title="${escapeHtml(e.question)}">
       <span class="title">${escapeHtml(e.question)}</span>
       <span class="row-meta">
+        <span class="date">${e.created_at ? compactDate(e.created_at) : ''}</span>
         ${e.mode && e.mode !== 'general' ? `<span class="mode-pill mode-${escapeHtml(e.mode)}">${escapeHtml(e.mode)}</span>` : ''}
-        <span class="date">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
       </span>
     </button>
   `).join('');
@@ -180,6 +180,20 @@ function renderSidebar() {
   $$('#history .item').forEach((el) =>
     el.addEventListener('click', () => selectTurn(el.dataset.cid, el.dataset.tid))
   );
+}
+
+// Short, single-line date: "2m ago" / "3h ago" / "Mon 14:32" / "May 28".
+// Keeps the sidebar row narrow so the mode pill always fits next to it.
+function compactDate(iso) {
+  const t = new Date(iso).getTime();
+  const diff = Date.now() - t;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 24 * 3_600_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 7 * 24 * 3_600_000) {
+    return new Date(t).toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+  return new Date(t).toLocaleString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function metaHtml(turn) {
