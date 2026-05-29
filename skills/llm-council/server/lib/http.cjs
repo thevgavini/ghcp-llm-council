@@ -13,7 +13,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const MAX_BODY_BYTES = 1024 * 1024;   // 1 MiB cap per request body
 const ID_RE = /^(conv|turn)_[0-9a-f]{12}$/;
 
-function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath, csrfToken: providedToken }) {
+function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath, csrfToken: providedToken, onActivity }) {
   fs.mkdirSync(stateDir, { recursive: true });
   fs.mkdirSync(conversationsDir, { recursive: true });
   const store = createStore({ dir: conversationsDir });
@@ -27,6 +27,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
 
   const wsClients = new Set();
   const server = http.createServer(async (req, res) => {
+    if (onActivity) try { onActivity(); } catch {}
     try {
       // Enforce same-origin on every mutating REST request.
       if (req.url.startsWith('/api/') && !SAFE_METHODS.has(req.method)) {
@@ -64,6 +65,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
   });
 
   server.on('upgrade', (req, socket) => {
+    if (onActivity) try { onActivity(); } catch {}
     if (req.url !== '/ws') { socket.destroy(); return; }
     if (!checkOrigin(req)) { socket.destroy(); return; }
     const key = req.headers['sec-websocket-key'];

@@ -9,12 +9,14 @@ function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'store-'));
 }
 
-test('createConversation returns an id and persists nothing yet', () => {
+test('createConversation immediately persists to disk', () => {
   const dir = tmpDir();
   const store = createStore({ dir });
   const { id } = store.createConversation({ question: 'q' });
   assert.match(id, /^conv_/);
-  assert.equal(fs.existsSync(path.join(dir, `${id}.json`)), false);
+  // Conversations are now persisted on every mutation so a server restart
+  // (e.g. the idle timeout) never loses in-flight state.
+  assert.equal(fs.existsSync(path.join(dir, `${id}.json`)), true);
 });
 
 test('appendTurn returns a turn id', () => {
@@ -49,13 +51,14 @@ test('patchTurn with stage 3 persists conversation to disk', () => {
   assert.equal(onDisk.turns[0].synthesis.text, 'final');
 });
 
-test('partial turns (no stage:3) are not persisted', () => {
+test('every patch persists the conversation (so partial turns survive restart)', () => {
   const dir = tmpDir();
   const store = createStore({ dir });
   const { id: cid } = store.createConversation({ question: 'q' });
   const { id: tid } = store.appendTurn(cid, { question: 'q' });
   store.patchTurn(cid, tid, { stage: 1 });
-  assert.equal(fs.existsSync(path.join(dir, `${cid}.json`)), false);
+  const onDisk = JSON.parse(fs.readFileSync(path.join(dir, `${cid}.json`), 'utf8'));
+  assert.equal(onDisk.turns[0].stage, 1);
 });
 
 test('listConversations returns in reverse chronological order', async () => {

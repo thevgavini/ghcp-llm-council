@@ -11,6 +11,7 @@ function createStore({ dir }) {
     const now = isoNow();
     const conv = { id, created_at: now, updated_at: now, title: question.slice(0, 60), turns: [] };
     mem.set(id, conv);
+    persist(conv);
     return { id };
   }
 
@@ -20,6 +21,7 @@ function createStore({ dir }) {
     const now = isoNow();
     conv.turns.push({ id, question, created_at: now, stage: 0, councillors: [], rankings: [], label_map: {}, aggregate: [], synthesis: null, drills: [] });
     conv.updated_at = now;
+    persist(conv);
     return { id };
   }
 
@@ -31,8 +33,6 @@ function createStore({ dir }) {
     const conv = ensure(cid);
     const turn = conv.turns.find((t) => t.id === tid);
     if (!turn) throw new Error(`unknown turn: ${tid}`);
-    // H4: allowlist patch keys. Reject __proto__, constructor, prototype, and
-    // any other unexpected field. Prevents arbitrary turn-field overwrite.
     for (const key of Object.keys(patch)) {
       if (!ALLOWED_PATCH_KEYS.has(key)) {
         throw new Error(`patch key not allowed: ${key}`);
@@ -40,8 +40,18 @@ function createStore({ dir }) {
     }
     Object.assign(turn, patch);
     conv.updated_at = isoNow();
-    if (patch.stage === 3) {
-      fs.writeFileSync(path.join(dir, `${cid}.json`), JSON.stringify(conv, null, 2));
+    // Persist on every mutation, not just at stage 3. Previously a server
+    // restart (e.g. the 30-min idle shutdown) would lose any conversation
+    // that hadn't reached chairman synthesis yet.
+    persist(conv);
+  }
+
+  function persist(conv) {
+    try {
+      fs.writeFileSync(path.join(dir, `${conv.id}.json`), JSON.stringify(conv, null, 2));
+    } catch (e) {
+      // Best-effort: a bad disk shouldn't crash the API.
+      console.error('store: persist failed', e.message);
     }
   }
 

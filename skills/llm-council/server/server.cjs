@@ -6,7 +6,10 @@ const DIR = process.env.LLM_COUNCIL_DIR || path.join(process.cwd(), '.llm-counci
 const HOST = process.env.LLM_COUNCIL_HOST || '127.0.0.1';
 const URL_HOST = process.env.LLM_COUNCIL_URL_HOST || HOST;
 const OWNER_PID = process.env.LLM_COUNCIL_OWNER_PID ? Number(process.env.LLM_COUNCIL_OWNER_PID) : null;
-const IDLE_MS = Number(process.env.LLM_COUNCIL_IDLE_MS || 30 * 60 * 1000);
+// Eight hours of idle by default — long enough that a browser tab left open
+// overnight doesn't lose its server, short enough that orphaned servers
+// don't accumulate. Override with LLM_COUNCIL_IDLE_MS to taste.
+const IDLE_MS = Number(process.env.LLM_COUNCIL_IDLE_MS || 8 * 60 * 60 * 1000);
 const LIFECYCLE_MS = Number(process.env.LLM_COUNCIL_LIFECYCLE_INTERVAL_MS || 60 * 1000);
 const ALLOW_REMOTE = process.env.LLM_COUNCIL_ALLOW_REMOTE === '1';
 
@@ -29,9 +32,16 @@ const defaultsPath = path.join(__dirname, '..', 'defaults', 'council.json');
 
 fs.mkdirSync(stateDir, { recursive: true });
 
-const server = createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath });
-
 let lastActivity = Date.now();
+
+const server = createHttpServer({
+  publicDir, stateDir, conversationsDir, defaultsPath,
+  // Any HTTP request or WS upgrade — including a browser tab polling
+  // /api/health — counts as activity, so an open tab keeps the server alive
+  // and only truly orphaned servers hit the idle timeout.
+  onActivity: () => { lastActivity = Date.now(); }
+});
+
 server.onEvent && server.onEvent(() => { lastActivity = Date.now(); });
 
 async function start() {
