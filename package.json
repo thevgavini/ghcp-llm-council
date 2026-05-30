@@ -1,13 +1,15 @@
 {
   "name": "ghcp-llm-council",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A GitHub Copilot CLI skill that runs your question past a council of LLMs — multi-model deliberation with live UI.",
   "author": "Vivekananda Gavini",
   "license": "MIT",
   "type": "commonjs",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
-    "ghcp-llm-council": "./bin/install.js"
+    "ghcp-llm-council": "bin/install.js"
   },
   "files": [
     "bin/",
@@ -34,7 +36,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/thevgavini/ghcp-llm-council.git"
+    "url": "git+https://github.com/thevgavini/ghcp-llm-council.git"
   },
   "homepage": "https://github.com/thevgavini/ghcp-llm-council#readme",
   "bugs": {
