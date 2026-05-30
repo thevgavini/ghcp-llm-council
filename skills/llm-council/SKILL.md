@@ -55,7 +55,22 @@ Five modes are available; each ships its own `councillor` and `chairman` prompts
 | `plan` | Step-by-step implementation roadmap | "plan", "roadmap", "how would you build", "implementation plan for" |
 | `research` | Learn about a topic; explain without recommending | "explain", "how does X work", "what is the state of", "deep dive into" |
 
-Pick the mode from the user's phrasing. When in doubt, use `general`. Pass it via `--mode <mode>` to `init` and `follow-up`. The init output returns `prompts_dir` (e.g. `prompts/review`) — **use that path** for the councillor and chairman prompts in this turn.
+### MANDATORY: pre-flight mode confirmation in the CLI
+
+Before calling `init`, **you must offer the user a mode choice in chat** so they don't have to remember flags. Don't skip this even if the question seems obvious — the user might disagree with your read.
+
+1. Classify the user's question into one of the five modes using the triggering language above. When the question doesn't fit any specialist mode, recommend `general`.
+2. Reply with a single short line in the form:
+
+   > **Council mode: `<recommended>` recommended** (`<one-line why>`). Reply with `general` / `review` / `design` / `plan` / `research` to change, or just `go` to confirm.
+
+   Example: *Council mode: `design` recommended (you're choosing between two technologies). Reply with general / review / plan / research to change, or just go to confirm.*
+
+3. Wait for the user's reply. Treat `go`, `yes`, `ok`, `confirm`, an empty message, or the same word back as confirmation of your recommendation. Treat any of the five mode names as an override. Treat anything else as a free-form clarification of the question — re-classify and ask again.
+
+4. Once confirmed, proceed to Step 0 with `--mode <chosen>`.
+
+For follow-ups (`follow up: ...`), skip this step — the conversation already has a mode and the helper inherits it automatically. If the user explicitly says "follow up but as X", pass `--mode X` on `follow-up`.
 
 ## File context — `--files` on init / follow-up
 
@@ -66,6 +81,8 @@ node <skill_dir>/bin/council.cjs init --mode review --files src/auth.cjs,src/mid
 ```
 
 The helper reads each file, caps it at 50 KB (200 KB total across all `--files`), prepends a `--- FILE: <path> ---` block to the question, and stores the augmented question. The councillors then see the file contents inline. Don't paste files into the question text yourself — let the helper do it so size caps and the file-block framing are consistent.
+
+If the user mentioned filenames in their question (e.g., "review src/auth.cjs"), grep them out and pass them via `--files` automatically — don't make the user re-type them.
 
 ## The mandatory loop
 

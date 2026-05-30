@@ -167,15 +167,19 @@ function renderSidebar() {
   }
   entries.sort((a, b) => (b.created_at > a.created_at ? 1 : -1));
 
-  const html = entries.map((e) => `
-    <button class="item ${e.tid === state.currentTurnId ? 'active' : ''}" data-cid="${e.cid}" data-tid="${e.tid}" title="${escapeHtml(e.question)}">
-      <span class="title">${escapeHtml(e.question)}</span>
-      <span class="row-meta">
+  const html = entries.map((e) => {
+    const pill = (e.mode && e.mode !== 'general')
+      ? `<span class="mode-pill mode-${escapeHtml(e.mode)}">${escapeHtml(e.mode)}</span>`
+      : '';
+    return `
+      <button class="item ${e.tid === state.currentTurnId ? 'active' : ''}" data-cid="${e.cid}" data-tid="${e.tid}" title="${escapeHtml(e.question)}">
+        <span class="title-row">
+          ${pill}
+          <span class="title">${escapeHtml(e.question)}</span>
+        </span>
         <span class="date">${e.created_at ? compactDate(e.created_at) : ''}</span>
-        ${e.mode && e.mode !== 'general' ? `<span class="mode-pill mode-${escapeHtml(e.mode)}">${escapeHtml(e.mode)}</span>` : ''}
-      </span>
-    </button>
-  `).join('');
+      </button>`;
+  }).join('');
   $('#history').innerHTML = html || '<div class="muted" style="padding:8px">No questions yet.</div>';
   $$('#history .item').forEach((el) =>
     el.addEventListener('click', () => selectTurn(el.dataset.cid, el.dataset.tid))
