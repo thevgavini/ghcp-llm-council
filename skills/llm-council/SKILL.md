@@ -57,16 +57,17 @@ Five modes are available; each ships its own `councillor` and `chairman` prompts
 
 ### MANDATORY: pre-flight mode confirmation in the CLI
 
-Before calling `init`, **you must offer the user a mode choice in chat** so they don't have to remember flags. Don't skip this even if the question seems obvious — the user might disagree with your read.
+Before calling `init`, **you must offer the user a mode choice using the `ask_user` tool** so they can pick from a list without typing. Don't skip this even if the question seems obvious — the user might disagree with your read.
 
 1. Classify the user's question into one of the five modes using the triggering language above. When the question doesn't fit any specialist mode, recommend `general`.
-2. Reply with a single short line in the form:
+2. Use the `ask_user` tool with a `choices` array. Put the recommended mode first with "(Recommended)" appended. Example:
 
-   > **Council mode: `<recommended>` recommended** (`<one-line why>`). Reply with `general` / `review` / `design` / `plan` / `research` to change, or just `go` to confirm.
+   ```
+   question: "Which council mode for this question?"
+   choices: ["design (Recommended)", "general", "review", "plan", "research"]
+   ```
 
-   Example: *Council mode: `design` recommended (you're choosing between two technologies). Reply with general / review / plan / research to change, or just go to confirm.*
-
-3. Wait for the user's reply. Treat `go`, `yes`, `ok`, `confirm`, an empty message, or the same word back as confirmation of your recommendation. Treat any of the five mode names as an override. Treat anything else as a free-form clarification of the question — re-classify and ask again.
+3. Map the user's selection to the mode name (strip the "(Recommended)" suffix if present). If the user provides freeform text that isn't a mode name, treat it as a clarification of the question — re-classify and ask again.
 
 4. Once confirmed, proceed to Step 0 with `--mode <chosen>`.
 
