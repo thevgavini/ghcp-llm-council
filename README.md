@@ -65,9 +65,16 @@ Two inference paths, zero extra credentials:
 - **`task` backend** — models dispatched through Copilot's built-in inference (your subscription covers it)
 - **`github-models` backend** — models called via `models.github.ai` using your `gh auth token`
 
-## Install
+## Prerequisites
 
-### Quick (PowerShell)
+| Requirement | Check | Install |
+|-------------|-------|---------|
+| Node.js 20+ | `node --version` | [nodejs.org](https://nodejs.org/) or `winget install OpenJS.NodeJS.LTS` |
+| GitHub CLI | `gh --version` | [cli.github.com](https://cli.github.com/) or `winget install GitHub.cli` |
+| GitHub auth | `gh auth status` | `gh auth login` |
+| Copilot CLI | `ghcp --version` | Included with GitHub Copilot subscription |
+
+## Install
 
 ```powershell
 git clone https://github.com/thevgavini/ghcp-llm-council.git
@@ -75,13 +82,9 @@ cd ghcp-llm-council
 .\install-skill.ps1
 ```
 
-### Manual
+Restart your Copilot CLI session after installing.
 
-Copy `skills/llm-council/` to `~/.copilot/skills/llm-council/`. That's it.
-
-**Requirements:** Node 20+, GitHub Copilot CLI, `gh auth login` (needed for GitHub Models backend). No `npm install` — zero dependencies at runtime.
-
-> **Note:** The `github-models` backend (Llama, DeepSeek, Mistral) requires a GitHub token. Run `gh auth login` or set the `GITHUB_TOKEN` environment variable. Without it, only `task`-backend models (Claude, GPT) will work.
+**No `npm install` needed** — zero runtime dependencies.
 
 ## Usage
 
