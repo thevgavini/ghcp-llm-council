@@ -79,7 +79,9 @@ cd ghcp-llm-council
 
 Copy `skills/llm-council/` to `~/.copilot/skills/llm-council/`. That's it.
 
-**Requirements:** Node 20+, GitHub Copilot CLI, `gh auth login`. No `npm install` — zero dependencies at runtime.
+**Requirements:** Node 20+, GitHub Copilot CLI, `gh auth login` (needed for GitHub Models backend). No `npm install` — zero dependencies at runtime.
+
+> **Note:** The `github-models` backend (Llama, DeepSeek, Mistral) requires a GitHub token. Run `gh auth login` or set the `GITHUB_TOKEN` environment variable. Without it, only `task`-backend models (Claude, GPT) will work.
 
 ## Usage
 
