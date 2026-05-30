@@ -15,6 +15,14 @@
 
 ---
 
+## What is this?
+
+LLM Council is a **skill** (plugin) for [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli). Instead of getting one model's opinion, you get a structured debate between five frontier models — with peer review, anonymous ranking, and a chairman's synthesis.
+
+Think of it as a panel of senior engineers reviewing your question. Each brings a different perspective (Anthropic, OpenAI, Meta, DeepSeek, Mistral), they critique each other's answers without knowing who said what, and a chairman distils the best reasoning into one definitive response.
+
+Everything runs locally through your existing Copilot subscription and GitHub token. No extra API keys, no external services, no data leaving your machine beyond the model inference calls you're already making.
+
 ## How it works
 
 ```
