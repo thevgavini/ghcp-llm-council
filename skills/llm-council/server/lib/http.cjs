@@ -114,14 +114,15 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
   async function route(req, res) {
     const u = req.url; const m = req.method;
     // Strip query string for path matching, but preserve it for endpoints
-    // that care (currently /api/config supports ?mode=X).
+    // that care (currently /api/config supports ?mode=X). Named urlPath, not
+    // path, so it doesn't shadow the node:path module used by staticServe.
     const qIdx = u.indexOf('?');
-    const path = qIdx === -1 ? u : u.slice(0, qIdx);
+    const urlPath = qIdx === -1 ? u : u.slice(0, qIdx);
     const query = qIdx === -1 ? {} : Object.fromEntries(new URLSearchParams(u.slice(qIdx + 1)));
-    if (m === 'GET' && path === '/api/config') {
+    if (m === 'GET' && urlPath === '/api/config') {
       return json(res, 200, loadConfig({ runtimePath: runtimeConfigPath, defaultsPath, mode: query.mode }));
     }
-    if (m === 'PUT' && path === '/api/config') {
+    if (m === 'PUT' && urlPath === '/api/config') {
       const body = await readJson(req);
       const v = validateConfig(body);
       if (!v.ok) return json(res, 400, { error: v.error });
@@ -131,7 +132,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'config-changed' });
       return json(res, 200, { ok: true });
     }
-    if (m === 'POST' && path === '/api/conversations') {
+    if (m === 'POST' && urlPath === '/api/conversations') {
       const body = await readJson(req);
       const result = store.createConversation({
         question: body.question || '',
@@ -146,7 +147,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'conversation-created', conversation_id: result.id });
       return json(res, 201, result);
     }
-    let mt = path.match(/^\/api\/conversations\/([^/]+)\/turns$/);
+    let mt = urlPath.match(/^\/api\/conversations\/([^/]+)\/turns$/);
     if (mt && m === 'POST') {
       const cid = mt[1];
       if (!ID_RE.test(cid)) return json(res, 400, { error: 'invalid conversation id' });
@@ -155,7 +156,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'turn-update', conversation_id: cid, turn_id: t.id });
       return json(res, 201, t);
     }
-    mt = path.match(/^\/api\/conversations\/([^/]+)$/);
+    mt = urlPath.match(/^\/api\/conversations\/([^/]+)$/);
     if (mt && m === 'GET') {
       const cid = mt[1];
       if (!ID_RE.test(cid)) return json(res, 400, { error: 'invalid conversation id' });
@@ -163,10 +164,10 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       if (!conv) return json(res, 404, { error: 'not found' });
       return json(res, 200, conv);
     }
-    if (m === 'GET' && path === '/api/conversations') {
+    if (m === 'GET' && urlPath === '/api/conversations') {
       return json(res, 200, store.listConversations());
     }
-    mt = path.match(/^\/api\/turns\/([^/]+)$/);
+    mt = urlPath.match(/^\/api\/turns\/([^/]+)$/);
     if (mt && m === 'PATCH') {
       const tid = mt[1];
       if (!ID_RE.test(tid)) return json(res, 400, { error: 'invalid turn id' });
@@ -182,7 +183,7 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       emit({ type: 'turn-update', conversation_id: cid, turn_id: tid, patch });
       return json(res, 200, { ok: true });
     }
-    if (m === 'POST' && path === '/api/events') {
+    if (m === 'POST' && urlPath === '/api/events') {
       const body = await readJson(req);
       const line = JSON.stringify({ ...body, timestamp: Date.now() }) + '\n';
       fs.appendFileSync(eventsPath, line);

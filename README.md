@@ -32,7 +32,7 @@ ln -s ~/ghcp-llm-council ~/.copilot/installed-plugins/ghcp-llm-council-marketpla
 
 # 4. Add to ~/.copilot/config.json under installedPlugins:
 #   { "name": "ghcp-llm-council", "marketplace": "ghcp-llm-council-marketplace",
-#     "version": "0.1.0", "installed_at": "<now>", "enabled": true,
+#     "version": "0.4.0", "installed_at": "<now>", "enabled": true,
 #     "cache_path": "<absolute path to the symlink above>" }
 
 # 5. Restart your Copilot CLI session.
@@ -83,12 +83,19 @@ The `id` must match a model the ghcp CLI `task` tool supports.
 ## Development
 
 ```bash
-node --test tests/          # run all tests
-node --test --watch tests/  # watch mode
-node server/start.cjs       # launch server standalone for UI dev
-node server/stop.cjs        # tear down
+npm test               # run all tests (works on Node 20, 22, and 24)
+node --test --watch    # watch mode
+node skills/llm-council/server/start.cjs   # launch server standalone for UI dev
+node skills/llm-council/server/stop.cjs    # tear down
 ```
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE) for full text.
+
+This project bundles two third-party libraries in the frontend, each kept
+under its original license. Full license texts and notices live in
+[skills/llm-council/server/public/vendor/LICENSES/](skills/llm-council/server/public/vendor/LICENSES/):
+
+- **marked** v12.0.0 — MIT
+- **DOMPurify** v3.2.4 — Apache-2.0 OR MPL-2.0 (dual-licensed)

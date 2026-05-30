@@ -24,20 +24,20 @@ const KNOWN_MODELS = {
     { vendor: 'OpenAI',    id: 'gpt-4.1',             display: 'GPT-4.1' }
   ],
   'github-models': [
-    { vendor: 'Meta',      id: 'meta/Meta-Llama-3.3-70B-Instruct', display: 'Llama 3.3 70B' },
-    { vendor: 'Meta',      id: 'meta/Llama-4-Scout-17B-16E-Instruct', display: 'Llama 4 Scout 17B' },
-    { vendor: 'DeepSeek',  id: 'deepseek/DeepSeek-V3-0324',         display: 'DeepSeek V3' },
-    { vendor: 'DeepSeek',  id: 'deepseek/DeepSeek-R1',              display: 'DeepSeek R1' },
-    { vendor: 'Mistral',   id: 'mistral-ai/Mistral-Medium-2505',    display: 'Mistral Medium 2505' },
-    { vendor: 'Mistral',   id: 'mistral-ai/Mistral-Small-2503',     display: 'Mistral Small 2503' },
-    { vendor: 'Mistral',   id: 'mistral-ai/Codestral-2501',         display: 'Codestral 2501' },
-    { vendor: 'Microsoft', id: 'microsoft/Phi-4',                   display: 'Phi-4' },
-    { vendor: 'Microsoft', id: 'microsoft/Phi-4-multimodal-instruct', display: 'Phi-4 Multimodal' },
-    { vendor: 'Cohere',    id: 'cohere/Cohere-command-a',           display: 'Cohere Command A' },
-    { vendor: 'AI21 Labs', id: 'ai21-labs/AI21-Jamba-1.5-Large',    display: 'Jamba 1.5 Large' },
-    { vendor: 'OpenAI',    id: 'openai/gpt-4.1',                    display: 'GPT-4.1 (via GitHub Models)' },
-    { vendor: 'OpenAI',    id: 'openai/gpt-4o',                     display: 'GPT-4o (via GitHub Models)' },
-    { vendor: 'OpenAI',    id: 'openai/gpt-4o-mini',                display: 'GPT-4o mini (via GitHub Models)' }
+    { vendor: 'Meta',      id: 'meta/llama-3.3-70b-instruct',          display: 'Llama 3.3 70B' },
+    { vendor: 'Meta',      id: 'meta/llama-4-scout-17b-16e-instruct',  display: 'Llama 4 Scout 17B' },
+    { vendor: 'DeepSeek',  id: 'deepseek/deepseek-v3-0324',            display: 'DeepSeek V3' },
+    { vendor: 'DeepSeek',  id: 'deepseek/deepseek-r1',                 display: 'DeepSeek R1' },
+    { vendor: 'Mistral',   id: 'mistral-ai/mistral-medium-2505',       display: 'Mistral Medium 2505' },
+    { vendor: 'Mistral',   id: 'mistral-ai/mistral-small-2503',        display: 'Mistral Small 2503' },
+    { vendor: 'Mistral',   id: 'mistral-ai/codestral-2501',            display: 'Codestral 2501' },
+    { vendor: 'Microsoft', id: 'microsoft/phi-4',                      display: 'Phi-4' },
+    { vendor: 'Microsoft', id: 'microsoft/phi-4-multimodal-instruct',  display: 'Phi-4 Multimodal' },
+    { vendor: 'Cohere',    id: 'cohere/cohere-command-a',              display: 'Cohere Command A' },
+    { vendor: 'AI21 Labs', id: 'ai21-labs/ai21-jamba-1.5-large',       display: 'Jamba 1.5 Large' },
+    { vendor: 'OpenAI',    id: 'openai/gpt-4.1',                       display: 'GPT-4.1 (via GitHub Models)' },
+    { vendor: 'OpenAI',    id: 'openai/gpt-4o',                        display: 'GPT-4o (via GitHub Models)' },
+    { vendor: 'OpenAI',    id: 'openai/gpt-4o-mini',                   display: 'GPT-4o mini (via GitHub Models)' }
   ]
 };
 

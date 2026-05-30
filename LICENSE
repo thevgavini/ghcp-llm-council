@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 ghcp-llm-council contributors
+Copyright (c) 2026 Vivekananda Gavini and ghcp-llm-council contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+Third-party components bundled with this software
+================================================================================
+
+The frontend bundles two third-party libraries under their respective
+licenses. Their license texts and notices are reproduced verbatim in
+`skills/llm-council/server/public/vendor/LICENSES/`.
+
+* marked v12.0.0 — MIT License
+  Copyright (c) 2018+ MarkedJS, Copyright (c) 2011-2018 Christopher Jeffrey
+  See: skills/llm-council/server/public/vendor/LICENSES/marked-MIT.txt
+
+* DOMPurify v3.2.4 — Apache License 2.0 OR Mozilla Public License 2.0
+  Copyright (c) Cure53 and other contributors
+  See: skills/llm-council/server/public/vendor/LICENSES/Apache-2.0.txt
+       skills/llm-council/server/public/vendor/LICENSES/MPL-2.0.txt
+
+The original copyright notices in those minified files are preserved
+unchanged.
+

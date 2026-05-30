@@ -16,6 +16,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const SKILL_DIR = path.resolve(__dirname, '..');               // skills/llm-council
 const SERVER_START = path.join(SKILL_DIR, 'server', 'start.cjs');
 const RANKING_LIB = path.join(SKILL_DIR, 'server', 'lib', 'ranking.cjs');
+const { pingHealth } = require(path.join(SKILL_DIR, 'server', 'lib', 'health.cjs'));
 
 const GH_MODELS_HOST = 'models.github.ai';
 const GH_MODELS_PATH = '/inference/chat/completions';
@@ -101,28 +102,7 @@ async function ensureServer(ownerPid) {
   return info2;
 }
 
-function pingHealth(url) {
-  return new Promise((resolve) => {
-    try {
-      const u = new URL(`${url}/api/health`);
-      const req = http.request({
-        method: 'GET',
-        hostname: u.hostname,
-        port: u.port,
-        path: u.pathname,
-        timeout: 800
-      }, (res) => {
-        res.resume();
-        resolve(res.statusCode === 200);
-      });
-      req.on('error', () => resolve(false));
-      req.on('timeout', () => { req.destroy(); resolve(false); });
-      req.end();
-    } catch {
-      resolve(false);
-    }
-  });
-}
+// pingHealth lives in server/lib/health.cjs (shared with start.cjs).
 
 // ---- HTTP -----------------------------------------------------------------
 
@@ -382,9 +362,19 @@ async function cmdSynthesize(args) {
 }
 
 async function cmdReadEvents() {
-  if (!fs.existsSync(eventsPath())) return ok({ events: [] });
-  const raw = fs.readFileSync(eventsPath(), 'utf8');
-  fs.writeFileSync(eventsPath(), '');
+  const p = eventsPath();
+  if (!fs.existsSync(p)) return ok({ events: [] });
+  // Atomic-ish drain: rename to a temp path, then read it. Any concurrent
+  // writes by the server go into a fresh empty file at the original path,
+  // so the read-then-truncate window from earlier no longer loses events.
+  const tmp = `${p}.draining-${process.pid}-${Date.now()}`;
+  try { fs.renameSync(p, tmp); } catch (e) {
+    // ENOENT race: nothing to drain.
+    if (e.code === 'ENOENT') return ok({ events: [] });
+    throw e;
+  }
+  const raw = fs.readFileSync(tmp, 'utf8');
+  try { fs.unlinkSync(tmp); } catch {}
   const events = raw.split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   ok({ events });
 }
@@ -532,7 +522,7 @@ function postChatCompletion(token, model, prompt, opts = {}) {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
         'Accept': 'application/json',
-        'User-Agent': 'llm-council/0.1'
+        'User-Agent': 'llm-council/0.4'
       },
       timeout: (opts.timeout_ms || 120000)
     }, (res) => {

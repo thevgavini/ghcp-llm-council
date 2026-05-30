@@ -450,16 +450,6 @@ function bindCardClicks() {
   });
 }
 
-async function startNewConversation_REMOVED() {
-  // Browser-initiated new conversation is intentionally disabled in v0.1.
-  // Every question comes through the Copilot CLI; this stub is left for
-  // future re-introduction once orchestrator auto-dispatch is wired up.
-}
-
-async function submitFollowUp_REMOVED() {
-  // Browser-initiated follow-ups are intentionally disabled in v0.1.
-}
-
 // ---- Settings drawer -------------------------------------------------------
 function renderSettings() {
   if (!state.config) return;

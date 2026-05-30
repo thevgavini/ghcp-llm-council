@@ -212,12 +212,12 @@ If you want to support a future browser-initiated input mode, you can periodical
 node <skill_dir>/bin/council.cjs read-events
 ```
 
-Returns `{"events":[...]}` and truncates the file. For v0.1 this is empty (the browser has no composer); leave it for future iteration.
+Returns `{"events":[...]}` and drains the file atomically. The browser has no composer yet — this returns empty in normal operation; the subcommand is kept for future iteration.
 
 ## Failure handling
 
 - **All councillors fail Stage 1.** Advance to `--stage -1` with an error PATCH on the turn. Tell the user; ask whether to retry.
-- **Some councillors fail.** Continue with survivors as long as `min_responses_to_proceed` is met. Browser shows failed cards with retry buttons (browser-initiated retry is not wired in v0.1 — the user can re-ask in the CLI).
+- **Some councillors fail.** Continue with survivors as long as `min_responses_to_proceed` is met. Browser shows failed cards with retry buttons (browser-initiated retry isn't wired up — the user can re-ask in the CLI).
 - **A ranker's text is unparseable** (no `FINAL RANKING:` section + no fallback matches). The helper's parser handles this — it returns an empty array, which the aggregator silently excludes. The raw text stays visible in the UI.
 - **Chairman fails.** Re-dispatch once. If it fails twice, synthesise a short notice ("Chairman failed; raw councillor responses and rankings are available above") and PATCH that as the synthesis text so the conversation can still persist.
 - **Server died mid-loop.** `init` will detect and restart on next call. For in-flight state loss, re-init with the same question (a duplicate conversation is acceptable; the user can delete from the sidebar later — that UX doesn't exist yet, so just acknowledge in chat).

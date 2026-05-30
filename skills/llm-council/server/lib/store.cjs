@@ -67,11 +67,24 @@ function createStore({ dir }) {
     }
   }
 
+  // Defensive read: a single corrupt file (editor swap, interrupted write)
+  // must not blow up the entire sidebar. Returns null on parse errors and
+  // logs once so the operator can investigate.
+  function readConvFile(file) {
+    try {
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (e) {
+      console.error(`store: skipping unreadable conversation file ${path.basename(file)}: ${e.message}`);
+      return null;
+    }
+  }
+
   function getConversation(cid) {
     if (mem.has(cid)) return mem.get(cid);
     const file = path.join(dir, `${cid}.json`);
     if (!fs.existsSync(file)) return null;
-    const conv = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const conv = readConvFile(file);
+    if (!conv) return null;
     mem.set(cid, conv);
     return conv;
   }
@@ -97,17 +110,16 @@ function createStore({ dir }) {
     }
     if (fs.existsSync(dir)) {
       for (const f of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-        const c = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        if (!seen.has(c.id)) {
-          seen.set(c.id, {
-            id: c.id,
-            title: c.title,
-            mode: c.mode || 'general',
-            created_at: c.created_at,
-            updated_at: c.updated_at || c.created_at,
-            turns: pickTurns(c.turns)
-          });
-        }
+        const c = readConvFile(path.join(dir, f));
+        if (!c || seen.has(c.id)) continue;
+        seen.set(c.id, {
+          id: c.id,
+          title: c.title,
+          mode: c.mode || 'general',
+          created_at: c.created_at,
+          updated_at: c.updated_at || c.created_at,
+          turns: pickTurns(c.turns)
+        });
       }
     }
     const items = Array.from(seen.values());
