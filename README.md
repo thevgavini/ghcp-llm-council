@@ -169,10 +169,15 @@ State lives in `<cwd>/.llm-council/` — add to `.gitignore`.
 ## Development
 
 ```bash
-npm test                # Node built-in test runner (Node 20/22/24)
-node --test --watch     # Watch mode
-node skills/llm-council/server/start.cjs   # Launch server standalone
+node skills/llm-council/server/start.cjs   # Launch server standalone for UI dev
 node skills/llm-council/server/stop.cjs    # Tear down
+```
+
+Tests live on the `tests/suite` branch:
+
+```bash
+git checkout tests/suite
+npm test
 ```
 
 ## Inspired by
