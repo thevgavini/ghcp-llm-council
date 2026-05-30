@@ -532,6 +532,10 @@ function modelOptionsHtml(backend, selectedId) {
 }
 
 function bindEvents() {
+  function closeDrawers() {
+    $('#about-drawer').hidden = true;
+    $('#settings-drawer').hidden = true;
+  }
   $('#new-conversation').addEventListener('click', () => {
     state.currentCid = null;
     state.currentTurnId = null;
@@ -539,8 +543,8 @@ function bindEvents() {
     render();
   });
   $('#open-about').addEventListener('click', async () => {
+    closeDrawers();
     $('#about-drawer').hidden = false;
-    // Fetch version lazily so the drawer opens instantly even if the server is slow.
     try {
       const info = await api('GET', '/api/about');
       $('#about-version').textContent = info.version || '—';
@@ -549,8 +553,14 @@ function bindEvents() {
     }
   });
   $('#close-about').addEventListener('click', () => { $('#about-drawer').hidden = true; });
-  $('#open-settings').addEventListener('click', () => { $('#settings-drawer').hidden = false; renderSettings(); });
+  $('#open-settings').addEventListener('click', () => {
+    closeDrawers();
+    $('#settings-drawer').hidden = false;
+    renderSettings();
+  });
   $('#close-settings').addEventListener('click', () => { $('#settings-drawer').hidden = true; });
+  // ESC closes any open drawer.
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawers(); });
   $('#settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const cfg = JSON.parse(JSON.stringify(state.config));
