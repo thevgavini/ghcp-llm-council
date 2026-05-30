@@ -10,6 +10,13 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/ghcp-llm-council"><img src="https://img.shields.io/npm/v/ghcp-llm-council?color=blue" alt="npm version" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen" alt="Node 20+" />
+  <a href="https://github.com/thevgavini/ghcp-llm-council/stargazers"><img src="https://img.shields.io/github/stars/thevgavini/ghcp-llm-council?style=social" alt="GitHub stars" /></a>
+</p>
+
+<p align="center">
   <a href="#install">Install</a> · <a href="#how-it-works">How it works</a> · <a href="#usage">Usage</a> · <a href="#configuration">Configuration</a> · <a href="#development">Development</a>
 </p>
 
@@ -75,6 +82,14 @@ Two inference paths, zero extra credentials:
 
 ## Install
 
+### One-liner (npx)
+
+```bash
+npx ghcp-llm-council install
+```
+
+### Manual
+
 ```powershell
 # 1. Install GitHub CLI (if you don't have it)
 winget install GitHub.cli
@@ -86,6 +101,12 @@ gh auth login
 git clone https://github.com/thevgavini/ghcp-llm-council.git
 cd ghcp-llm-council
 .\install-skill.ps1
+```
+
+### Uninstall
+
+```bash
+npx ghcp-llm-council uninstall
 ```
 
 Restart your Copilot CLI session after installing. Requires Node 20+ and GitHub Copilot CLI.

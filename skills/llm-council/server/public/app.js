@@ -455,7 +455,8 @@ function renderSettings() {
   if (!state.config) return;
   const cfg = state.config;
   const chair = $('#settings-chairman');
-  chair.innerHTML = cfg.council.map((c) => `<option value="${escapeHtml(c.id)}" ${c.id===cfg.chairman?'selected':''}>${escapeHtml(c.display)}</option>`).join('');
+  // Use modelOptionsHtml which includes all known models + preserves custom/unknown ids
+  chair.innerHTML = modelOptionsHtml('task', cfg.chairman);
   $('#settings-min').value = cfg.min_responses_to_proceed;
   $('#settings-timeout').value = cfg.councillor_timeout_seconds;
   $('#settings-councillors').innerHTML = cfg.council.map((c, i) => councillorRowHtml(c, i)).join('') +

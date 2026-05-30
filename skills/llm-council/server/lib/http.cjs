@@ -48,11 +48,10 @@ function createHttpServer({ publicDir, stateDir, conversationsDir, defaultsPath,
       }
       if (req.url === '/api/health') return json(res, 200, { ok: true, csrf_token: csrfToken });
       if (req.url === '/api/about' && req.method === 'GET') {
-        // Read package.json lazily so a missing/corrupt file doesn't break the server.
         let version = 'unknown';
         try {
-          const pkgPath = path.join(__dirname, '..', '..', '..', '..', 'package.json');
-          version = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || 'unknown';
+          const versionPath = path.join(__dirname, '..', '..', 'version.json');
+          version = JSON.parse(fs.readFileSync(versionPath, 'utf8')).version || 'unknown';
         } catch {}
         return json(res, 200, { version });
       }
