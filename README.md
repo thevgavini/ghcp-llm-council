@@ -17,7 +17,7 @@ You watch it unfold at a local URL with live updates, and you can ask follow-ups
 
 ```bash
 # 1. Clone (anywhere)
-git clone https://github.com/USER/ghcp-llm-council.git ~/ghcp-llm-council
+git clone https://github.com/thevgavini/ghcp-llm-council.git ~/ghcp-llm-council
 
 # 2. Register as a Copilot CLI plugin (one-time setup)
 mkdir -p ~/.copilot/installed-plugins/ghcp-llm-council-marketplace

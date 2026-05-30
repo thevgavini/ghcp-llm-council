@@ -11,5 +11,5 @@
     "test:watch": "node --test --watch",
     "start": "node skills/llm-council/server/start.cjs"
   },
-  "repository": { "type": "git", "url": "https://github.com/USER/ghcp-llm-council.git" }
+  "repository": { "type": "git", "url": "https://github.com/thevgavini/ghcp-llm-council.git" }
 }
