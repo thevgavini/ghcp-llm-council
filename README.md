@@ -183,7 +183,7 @@ npm test
 
 ## Inspired by
 
-[karpathy/llm-council](https://github.com/karpathy/llm-council) — the original multi-model deliberation concept. This project ports it into the Copilot CLI ecosystem with live visualisation, zero external credentials, and a skill-native interface.
+[karpathy/llm-council](https://github.com/karpathy/llm-council) — the original multi-model deliberation concept. This project brings it into the Copilot CLI ecosystem with live visualisation, zero external credentials, domain-specific modes (review, design, plan, research) with tuned prompts, and a skill-native interface that runs entirely from your terminal.
 
 ## License
 
