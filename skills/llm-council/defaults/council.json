@@ -16,7 +16,8 @@
         {"id": "claude-opus-4.7",                "vendor": "Anthropic", "display": "Claude Opus 4.7",    "backend": "task"},
         {"id": "claude-sonnet-4.6",              "vendor": "Anthropic", "display": "Claude Sonnet 4.6",  "backend": "task"},
         {"id": "gpt-5.2",                        "vendor": "OpenAI",    "display": "GPT-5.2",            "backend": "task"},
-        {"id": "deepseek/deepseek-v3-0324",      "vendor": "DeepSeek",  "display": "DeepSeek V3",        "backend": "github-models"}
+        {"id": "deepseek/deepseek-v3-0324",      "vendor": "DeepSeek",  "display": "DeepSeek V3",        "backend": "github-models"},
+        {"id": "mistral-ai/mistral-medium-2505", "vendor": "Mistral",   "display": "Mistral Medium 2505","backend": "github-models"}
       ],
       "chairman": "claude-opus-4.8",
       "chairman_backend": "task"
@@ -26,6 +27,7 @@
         {"id": "claude-opus-4.7",                "vendor": "Anthropic", "display": "Claude Opus 4.7",    "backend": "task"},
         {"id": "gpt-5.2",                        "vendor": "OpenAI",    "display": "GPT-5.2",            "backend": "task"},
         {"id": "meta/llama-3.3-70b-instruct",    "vendor": "Meta",      "display": "Llama 3.3 70B",      "backend": "github-models"},
+        {"id": "deepseek/deepseek-v3-0324",      "vendor": "DeepSeek",  "display": "DeepSeek V3",        "backend": "github-models"},
         {"id": "mistral-ai/mistral-medium-2505", "vendor": "Mistral",   "display": "Mistral Medium 2505","backend": "github-models"}
       ],
       "chairman": "claude-opus-4.8",
