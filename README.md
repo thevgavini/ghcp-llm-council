@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="80" alt="LLM Council" />
+  <img src="assets/logo.png" width="80" alt="LLM Council" />
 </p>
 
 <h1 align="center">LLM Council</h1>
@@ -56,13 +56,13 @@ A local web UI shows every stage unfolding in real time. No external API keys re
 ### Architecture
 
 <p align="center">
-  <img src="assets/architecture.svg" alt="System Architecture" width="100%" />
+  <img src="assets/architecture.png" alt="System Architecture" width="100%" />
 </p>
 
 ### Deliberation flow
 
 <p align="center">
-  <img src="assets/deliberation-flow.svg" alt="Deliberation Flow" width="100%" />
+  <img src="assets/deliberation-flow.png" alt="Deliberation Flow" width="100%" />
 </p>
 
 ## Default council
